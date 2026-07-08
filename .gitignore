@@ -1,0 +1,45 @@
+# Vivado transient files
+.Xil/
+*.jou
+*.log
+*.str
+*.pb
+*.wdb
+xsim.dir/
+webtalk*
+usage_statistics_webtalk.*
+
+# Vivado generated folders
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.gen/
+
+# Simulation dumps
+*.vcd
+*.fst
+*.dump
+
+# Generated implementation artifacts
+*.bit
+*.ltx
+*.dcp
+*.mmi
+*.mcs
+*.prm
+*.rpt
+
+# Local/editor noise
+__pycache__/
+*.pyc
+Thumbs.db
+desktop.ini
+*.tmp
+*.swp
+
+# Archives should be uploaded as release assets if needed
+*.zip
+*.7z
+*.rar

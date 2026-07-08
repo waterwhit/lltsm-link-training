@@ -1,0 +1,13 @@
+*.v text eol=lf
+*.sv text eol=lf
+*.vh text eol=lf
+*.tcl text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
