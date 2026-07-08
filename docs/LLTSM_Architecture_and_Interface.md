@@ -1,4 +1,4 @@
-# Current LLTSM Internal Architecture and External Interface
+# Reusable Physical Link Delay Training FSM Architecture and External Interface
 
 Generated: 2026-07-07  
 Active RTL:
@@ -9,17 +9,17 @@ Active RTL:
 Frozen delay-definition note:
 
 - See `LLTSM_Trained_Path_Delay_Frozen_Scheme.md`.
-- The current project measures `trained_path_delay`, not pure `physical_link_delay`.
+- The standalone module measures `trained_path_delay`, not pure `physical_link_delay`.
 - Current RTL uses `train_tx_*`, `train_rx_*`, and `train_rx_ref_time` to make the controller training-frame adapter boundary explicit.
 
 ## 0. Frozen Integration Position: FIFO/MAC/PHY Boundary and Timestamp Reference
 
-The LLTSM branch must not be treated as a direct PHY-driving module. In the controller integration, LLTSM training data should enter the same controller-side buffering and frame processing path as normal traffic. The controller link layer or frame builder then adds the required bus header, address/type fields, CRC/FCS policy, and MAC control before the frame is sent by the selected MAC and PHY.
+The link training branch must not be treated as a direct PHY-driving module. In a host-controller integration, training data should enter the same controller-side buffering and frame processing path as normal traffic. The host controller link layer or frame builder then adds the required bus header, address/type fields, CRC/FCS policy, and MAC control before the frame is sent by the selected MAC and PHY.
 
 Recommended integration boundary:
 
-- LLTSM boundary: generate and recognize fixed-length training frames, including training frame type, node/link/channel IDs, sequence, turnaround, and fixed payload.
-- Controller link/FIFO boundary: buffer training frames and normal frames; arbitrate traffic during training; parse or build controller-level frame metadata.
+- Training FSM boundary: generate and recognize fixed-length training frames, including training frame type, node/link/channel IDs, sequence, turnaround, and fixed payload.
+- Host link/FIFO boundary: buffer training frames and normal frames; arbitrate traffic during training; parse or build controller-level frame metadata.
 - MAC boundary: apply the actual medium frame format, such as Ethernet MAC frame handling or RS-485 frame handling.
 - PHY boundary: perform actual electrical, optical, or differential physical transmission.
 
@@ -27,19 +27,19 @@ Frozen timestamp policy:
 
 The current implementation measures trained path delay, not pure physical link propagation delay. The selected timestamp reference point may be placed at the controller TX FIFO/frame-adapter boundary and the controller RX parser boundary. This is acceptable because normal traffic is frozen during training, so FIFO queueing is constrained to a deterministic or negligible value, and later synchronization compensation uses the same reference-point definition.
 
-Definition used for the current project:
+Definition used for this standalone module:
 
 ```text
 trained_path_delay =
-    controller TX reference point
-  + fixed controller TX path
+    host-controller TX reference point
+  + fixed host-controller TX path
   + MAC/PHY fixed path
   + physical link propagation
-  + fixed controller RX path
+  + fixed host-controller RX path
   - responder turnaround compensation
 ```
 
-Therefore the result should be documented and stored as `trained_path_delay` or `controller_to_controller_delay`, not as pure `physical_link_delay`.
+Therefore the result should be documented and stored as `trained_path_delay` or `host_controller_to_host_controller_delay`, not as pure `physical_link_delay`.
 
 ![LLTSM MAC-based architecture](images/LLTSM_MAC_based_architecture.png)
 
@@ -47,16 +47,16 @@ Therefore the result should be documented and stored as `trained_path_delay` or 
 
 ## 1. Layered Internal Architecture
 
-The current LLTSM is a resource-minimized, TOP-controlled branch FSM. It is not a self-scheduling distributed training protocol. The controller TOP freezes normal traffic, selects exactly one adjacent link and one A/B channel, then starts one local trained-path-delay measurement branch.
+The current training module is a resource-minimized, host-controller-controlled branch FSM. It is not a self-scheduling distributed training protocol. The host controller freezes normal traffic, selects exactly one adjacent link and one channel, then starts one local trained-path-delay measurement branch.
 
 ![LLTSM layered internal architecture](images/LLTSM_layered_internal_architecture.png)
 
 ```mermaid
 flowchart TB
     subgraph CONTROL["Control Layer"]
-        TOP["Controller TOP<br/>- Freeze normal traffic<br/>- Select one adjacent link<br/>- Select A/B channel<br/>- Start branch training<br/>- Store delay result"]
-        FSM["LLTSM Branch FSM<br/>ttp_lltsm_branch_fsm.sv<br/>- DELAY_REQ control<br/>- DELAY_RESP control<br/>- RTT average<br/>- mean delay output"]
-        CODEC["LLTSM Branch Codec<br/>ttp_lltsm_branch_codec.sv<br/>- pack TX training frame<br/>- unpack RX training frame<br/>- check protocol tag/type"]
+        TOP["Host Controller<br/>- Freeze normal traffic<br/>- Select one adjacent link<br/>- Select channel<br/>- Start branch training<br/>- Store delay result"]
+        FSM["Training Branch FSM<br/>ttp_lltsm_branch_fsm.sv<br/>- DELAY_REQ control<br/>- DELAY_RESP control<br/>- RTT average<br/>- mean delay output"]
+        CODEC["Training Frame Codec<br/>ttp_lltsm_branch_codec.sv<br/>- pack TX training frame<br/>- unpack RX training frame<br/>- check protocol tag/type"]
     end
 
     subgraph LINK["Link Layer"]
@@ -69,7 +69,7 @@ flowchart TB
         PHY_RX["PHY RX Port<br/>selected channel A/B"]
     end
 
-    ADJ["Adjacent Node<br/>independent controller/link/PHY"]
+    ADJ["Adjacent Node<br/>independent host/link/PHY"]
 
     TOP -->|"control/config"| FSM
     FSM -->|"status/result"| TOP
@@ -94,7 +94,7 @@ Key rule: local and adjacent state machines do not directly interact. They only 
 ```mermaid
 flowchart TB
     subgraph CONTROL_IF["Control Layer Boundary"]
-        TOP_CTRL["Controller TOP"]
+        TOP_CTRL["Host Controller"]
     end
 
     LLTSM["LLTSM Branch Block<br/>FSM + Codec hidden"]
@@ -147,10 +147,10 @@ Integration constraint: the current codec uses a fixed 32-bit `tx_turnaround/rx_
 
 | Signal | Direction | Width | Active timing | Semantic |
 |---|---|---:|---|---|
-| `clk` | input | 1 | continuous | LLTSM branch FSM clock. |
+| `clk` | input | 1 | continuous | Link training branch FSM clock. |
 | `rst_n` | input | 1 | asynchronous, active low | Resets FSM to `S_IDLE`, clears counters, result flags, and response latches. |
 | `training_enable` | input | 1 | sampled each `clk` | Enables training. If `0`, FSM returns to `S_IDLE` and clears active sample accumulation. |
-| `abort` | input | 1 | sampled each `clk` | TOP-controlled cancel. If `1`, FSM returns to `S_IDLE`. |
+| `abort` | input | 1 | sampled each `clk` | Host-controlled cancel. If `1`, FSM returns to `S_IDLE`. |
 | `time_now` | input | `TIME_WIDTH`, default 32 | sampled on TX fire and accepted RX events | Local timestamp counter. Used for RTT and turnaround arithmetic. |
 | `local_start` | input | 1 | sampled in `S_IDLE` when `local_start_ready=1` | TOP requests this node to actively start one adjacent-link measurement. |
 | `local_node_id` | input | `NODE_ID_WIDTH`, default 4 | must stay stable while `busy=1` | This node ID. Used as TX source and RX destination match. |
@@ -276,7 +276,7 @@ The codec is combinational. It may be placed between the FSM metadata interface 
 
 ## 4. Top-Down External Interface Groups
 
-### 4.1 Control Layer Interface: Controller TOP to LLTSM
+### 4.1 Control Layer Interface: Host Controller to Training FSM
 
 | Direction | Signal | Meaning |
 |---|---|---|
@@ -292,7 +292,7 @@ The codec is combinational. It may be placed between the FSM metadata interface 
 | TOP -> LLTSM | `local_channel_id` | Selected A/B channel. |
 | TOP -> LLTSM | `local_training_round_id` | Training round ID used to reject stale frames. |
 
-### 4.2 Control Layer Interface: LLTSM to Controller TOP
+### 4.2 Control Layer Interface: Training FSM to Host Controller
 
 | Direction | Signal | Meaning |
 |---|---|---|
@@ -346,15 +346,15 @@ The codec is combinational. It may be placed between the FSM metadata interface 
 |---|---|---|
 | `clk` | system clock | Sequential clock for the branch FSM. |
 | `rst_n` | reset network | Active-low asynchronous reset. |
-| `training_enable` | Controller TOP | Enables training operation. If deasserted, the FSM returns to `S_IDLE`. |
-| `abort` | Controller TOP | Cancels the current branch and returns to `S_IDLE`. TOP owns global watchdog/retry policy. |
+| `training_enable` | Host Controller | Enables training operation. If deasserted, the FSM returns to `S_IDLE`. |
+| `abort` | Host Controller | Cancels the current branch and returns to `S_IDLE`. The host controller owns global watchdog/retry policy. |
 | `time_now` | controller/global time counter | Local timestamp counter used to capture TX/RX timing and turnaround delay. Width must equal `TIME_WIDTH`. |
-| `local_start` | Controller TOP | Request to start this node as the request side for the selected adjacent link. Accepted only when `local_start_ready=1`. |
-| `local_node_id` | Controller TOP | ID of this node. Used in outgoing source field and incoming destination matching. |
-| `local_neighbor_node_id` | Controller TOP | Expected adjacent node ID. Used in outgoing destination field and incoming source matching. |
-| `local_link_id` | Controller TOP | Selected adjacent physical/logical link index. |
-| `local_channel_id` | Controller TOP | Selected redundant channel, normally A/B encoded as 0/1. |
-| `local_training_round_id` | Controller TOP | Training round/session ID used to reject stale frames. |
+| `local_start` | Host Controller | Request to start this node as the request side for the selected adjacent link. Accepted only when `local_start_ready=1`. |
+| `local_node_id` | Host Controller | ID of this node. Used in outgoing source field and incoming destination matching. |
+| `local_neighbor_node_id` | Host Controller | Expected adjacent node ID. Used in outgoing destination field and incoming source matching. |
+| `local_link_id` | Host Controller | Selected adjacent physical/logical link index. |
+| `local_channel_id` | Host Controller | Selected redundant channel, normally A/B encoded as 0/1. |
+| `local_training_round_id` | Host Controller | Training round/session ID used to reject stale frames. |
 | `train_tx_ready` | local TX path | Handshake from the existing fixed-frame transmitter. A transmitted request/response is accepted when `train_tx_valid && train_tx_ready`. |
 | `train_rx_valid` | local RX path | Indicates decoded RX frame fields are valid for this cycle. |
 | `train_rx_frame_complete` | local RX path | Indicates the complete fixed-length frame has been received. |
@@ -375,7 +375,7 @@ The codec is combinational. It may be placed between the FSM metadata interface 
 
 | Signal | Destination | Meaning |
 |---|---|---|
-| `local_start_ready` | Controller TOP | This branch can accept a `local_start`. It is deasserted if an adjacent `DELAY_REQ` is currently being serviced. |
+| `local_start_ready` | Host Controller | This branch can accept a `local_start`. It is deasserted if an adjacent `DELAY_REQ` is currently being serviced. |
 | `train_tx_valid` | local TX path | Requests the local fixed-frame transmitter to send a training frame. |
 | `train_tx_frame_type` | branch codec/TX path | Outgoing training subtype: `1=DELAY_REQ`, `2=DELAY_RESP`. |
 | `train_tx_frame_words` | local TX path | Fixed payload word count. Current value is `TRAIN_FRAME_WORDS`, normally 8 words. |
@@ -386,12 +386,12 @@ The codec is combinational. It may be placed between the FSM metadata interface 
 | `train_tx_training_round_id` | branch codec | Round/session ID field for the outgoing frame. |
 | `train_tx_sequence` | branch codec | Sample sequence field. Request and matching response use the same sequence value. |
 | `train_tx_turnaround` | branch codec | Response-side turnaround value. Valid only for `DELAY_RESP`; zero for `DELAY_REQ`. |
-| `busy` | Controller TOP | FSM is actively sending request, waiting for response, or responding to a request. |
-| `done` | Controller TOP | One-cycle completion pulse in `S_DONE`. |
-| `result_valid` | Controller TOP | One-cycle result-valid pulse in `S_DONE`. Same timing as `done`. |
-| `result_ok` | Controller TOP | Result quality flag. Set if averaged RTT is larger than the received turnaround value. |
-| `result_rtt_average` | Controller TOP | Average round-trip time over `MEASURE_REPEATS` samples. |
-| `result_mean_delay` | Controller TOP | Calculated one-way mean delay: `(average RTT - remote turnaround) / 2`, saturated to zero if invalid. |
+| `busy` | Host Controller | FSM is actively sending request, waiting for response, or responding to a request. |
+| `done` | Host Controller | One-cycle completion pulse in `S_DONE`. |
+| `result_valid` | Host Controller | One-cycle result-valid pulse in `S_DONE`. Same timing as `done`. |
+| `result_ok` | Host Controller | Result quality flag. Set if averaged RTT is larger than the received turnaround value. |
+| `result_rtt_average` | Host Controller | Average round-trip time over `MEASURE_REPEATS` samples. |
+| `result_mean_delay` | Host Controller | Calculated one-way mean delay: `(average RTT - remote turnaround) / 2`, saturated to zero if invalid. |
 | `branch_state` | debug/status register | Encoded current FSM state for debug or register readback. |
 
 ## 7. Codec Interface Semantics

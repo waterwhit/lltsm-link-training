@@ -207,7 +207,7 @@ module tb_ttp_lltsm_branch_fsm;
         @(negedge clk); abort0 = 1'b0;
         wait (state0 == 3'd0);
 
-        $display("PASS: simplified TOP-controlled LLTSM branch passed");
+        $display("PASS: simplified host-controller-controlled link training branch passed");
         $finish;
     end
 

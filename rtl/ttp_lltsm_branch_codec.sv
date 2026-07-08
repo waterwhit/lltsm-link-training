@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 
-// Resource-minimized codec for the TOP-controlled LLTSM branch FSM.
+// Resource-minimized codec for the host-controller-controlled link training
+// branch FSM.
 // Eight 16-bit payload words are retained so the common CRC/MFM envelope does
 // not change. Only two frame subtypes are active:
 //   1 = DELAY_REQ, 2 = DELAY_RESP.
@@ -50,17 +51,17 @@ module ttp_lltsm_branch_codec #(
 
     initial begin
         if (NODE_COUNT < 2)
-            $fatal(1, "LLTSM branch codec requires NODE_COUNT >= 2");
+            $fatal(1, "Link training branch codec requires NODE_COUNT >= 2");
         if (LINK_COUNT != EXPECTED_LINK_COUNT)
-            $fatal(1, "LLTSM branch codec LINK_COUNT must equal NODE_COUNT-1");
+            $fatal(1, "Link training branch codec LINK_COUNT must equal NODE_COUNT-1");
         if ((NODE_ID_WIDTH != EXPECTED_NODE_ID_WIDTH) ||
             (LINK_ID_WIDTH != EXPECTED_LINK_ID_WIDTH) ||
             (CHANNEL_ID_WIDTH != EXPECTED_CHANNEL_ID_WIDTH))
-            $fatal(1, "LLTSM branch codec count/width mismatch");
+            $fatal(1, "Link training branch codec count/width mismatch");
         if ((NODE_ID_WIDTH > 8) || (LINK_ID_WIDTH > 4))
-            $fatal(1, "LLTSM branch codec wire-format width exceeded");
+            $fatal(1, "Link training branch codec wire-format width exceeded");
         if ((CHANNEL_COUNT != 2) || (CHANNEL_ID_WIDTH != 1))
-            $fatal(1, "LLTSM branch codec requires exactly two channels");
+            $fatal(1, "Link training branch codec requires exactly two channels");
     end
 
     always_comb begin

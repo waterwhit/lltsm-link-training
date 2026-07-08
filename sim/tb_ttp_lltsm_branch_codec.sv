@@ -59,7 +59,7 @@ module tb_ttp_lltsm_branch_codec;
         #1;
         if (rx_protocol_ok) $fatal(1, "non-zero reserved field accepted");
 
-        $display("PASS: simplified LLTSM branch codec passed");
+        $display("PASS: simplified link training branch codec passed");
         $finish;
     end
 endmodule
