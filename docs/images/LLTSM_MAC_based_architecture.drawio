@@ -1,90 +1,106 @@
-<mxfile host="app.diagrams.net" modified="2026-07-09T00:00:00.000Z" agent="Codex" version="24.7.17">
+<mxfile host="app.diagrams.net" agent="Codex">
   <diagram id="lltsm-mac-architecture" name="LLTSM MAC-based architecture">
-    <mxGraphModel dx="1800" dy="1120" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1120" math="0" shadow="0">
+    <mxGraphModel dx="1664" dy="985" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1120" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" value="Physical Link Delay Training FSM Integration" style="text;html=1;strokeColor=none;fillColor=none;fontSize=34;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="50" y="32" width="820" height="44" as="geometry" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=34;fontStyle=1;align=left;verticalAlign=middle;" value="Physical Link Delay Training FSM Integration" vertex="1">
+          <mxGeometry height="44" width="820" x="50" y="32" as="geometry" />
         </mxCell>
-        <mxCell id="subtitle" value="Reusable branch FSM. Training frames pass through the host controller FIFO/MAC/PHY path." style="text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontColor=#475569;align=left;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="50" y="78" width="920" height="30" as="geometry" />
+        <mxCell id="subtitle" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontColor=#475569;align=left;verticalAlign=middle;" value="Reusable branch FSM. Training frames pass through the host controller FIFO/MAC/PHY path." vertex="1">
+          <mxGeometry height="30" width="920" x="50" y="78" as="geometry" />
         </mxCell>
-        <mxCell id="layer-host" value="Host Control Layer" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EAF2FF;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" vertex="1" parent="1">
-          <mxGeometry x="45" y="125" width="1710" height="205" as="geometry" />
+        <mxCell id="layer-host" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EAF2FF;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" value="Host Control Layer" vertex="1">
+          <mxGeometry height="210" width="1355" x="45" y="120" as="geometry" />
         </mxCell>
-        <mxCell id="layer-mac" value="Training Frame Adapter / FIFO / MAC Layer" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#ECFDF3;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" vertex="1" parent="1">
-          <mxGeometry x="45" y="370" width="1710" height="365" as="geometry" />
+        <mxCell id="layer-mac" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#ECFDF3;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" value="Training Frame Adapter / FIFO / MAC Layer" vertex="1">
+          <mxGeometry height="365" width="1710" x="45" y="370" as="geometry" />
         </mxCell>
-        <mxCell id="layer-phy" value="PHY Layer" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF7E6;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" vertex="1" parent="1">
-          <mxGeometry x="45" y="775" width="1710" height="230" as="geometry" />
+        <mxCell id="layer-phy" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF7E6;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" value="PHY Layer" vertex="1">
+          <mxGeometry height="230" width="1710" x="45" y="775" as="geometry" />
         </mxCell>
-        <mxCell id="host-controller" value="&lt;b&gt;Host Controller&lt;/b&gt;&lt;br&gt;&lt;br&gt;freeze traffic&lt;br&gt;select link/channel&lt;br&gt;start/store result" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="90" y="195" width="330" height="120" as="geometry" />
+        <mxCell id="host-controller" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Host Controller&lt;/b&gt;&lt;br&gt;&lt;br&gt;freeze traffic&lt;br&gt;select link/channel&lt;br&gt;start/store result" vertex="1">
+          <mxGeometry height="120" width="330" x="90" y="195" as="geometry" />
         </mxCell>
-        <mxCell id="fsm" value="&lt;b&gt;Training Branch FSM&lt;/b&gt;&lt;br&gt;&lt;br&gt;DELAY_REQ / DELAY_RESP&lt;br&gt;RTT average&lt;br&gt;trained_path_delay" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="570" y="180" width="310" height="120" as="geometry" />
+        <mxCell id="fsm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Training Branch FSM&lt;/b&gt;&lt;br&gt;&lt;br&gt;DELAY_REQ / DELAY_RESP&lt;br&gt;RTT average&lt;br&gt;trained_path_delay" vertex="1">
+          <mxGeometry height="120" width="310" x="540" y="195" as="geometry" />
         </mxCell>
-        <mxCell id="codec" value="&lt;b&gt;Training Frame Codec&lt;/b&gt;&lt;br&gt;&lt;br&gt;pack/unpack fixed&lt;br&gt;8 x 16-bit words&lt;br&gt;protocol tag check" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="1030" y="180" width="330" height="120" as="geometry" />
+        <mxCell id="codec" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Training Frame Codec&lt;/b&gt;&lt;br&gt;&lt;br&gt;pack/unpack fixed&lt;br&gt;8 x 16-bit words&lt;br&gt;protocol tag check" vertex="1">
+          <mxGeometry height="120" width="330" x="1030" y="195" as="geometry" />
         </mxCell>
-        <mxCell id="tx-adapter" value="&lt;b&gt;TX FIFO / Adapter&lt;/b&gt;&lt;br&gt;&lt;br&gt;accept train_tx_* fields&lt;br&gt;selected TX reference point" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="170" y="480" width="250" height="105" as="geometry" />
+        <mxCell id="tx-adapter" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;TX FIFO / Adapter&lt;/b&gt;&lt;br&gt;&lt;br&gt;accept train_tx_* fields&lt;br&gt;selected TX reference point" vertex="1">
+          <mxGeometry height="105" width="250" x="170" y="480" as="geometry" />
         </mxCell>
-        <mxCell id="mac-tx" value="&lt;b&gt;CRC + Header + MAC TX&lt;/b&gt;&lt;br&gt;&lt;br&gt;normal controller send path&lt;br&gt;Ethernet / RS-485 / custom" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="525" y="460" width="275" height="145" as="geometry" />
+        <mxCell id="mac-tx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;CRC + Header + MAC TX&lt;/b&gt;&lt;br&gt;&lt;br&gt;normal controller send path&lt;br&gt;Ethernet / RS-485 / custom" vertex="1">
+          <mxGeometry height="145" width="275" x="525" y="460" as="geometry" />
         </mxCell>
-        <mxCell id="mac-rx" value="&lt;b&gt;MAC RX + CRC Check&lt;/b&gt;&lt;br&gt;&lt;br&gt;normal controller receive path&lt;br&gt;CRC/protocol status" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="460" width="275" height="145" as="geometry" />
+        <mxCell id="mac-rx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;MAC RX + CRC Check&lt;/b&gt;&lt;br&gt;&lt;br&gt;normal controller receive path&lt;br&gt;CRC/protocol status" vertex="1">
+          <mxGeometry height="145" width="275" x="1000" y="460" as="geometry" />
         </mxCell>
-        <mxCell id="rx-adapter" value="&lt;b&gt;RX Parser / Adapter&lt;/b&gt;&lt;br&gt;&lt;br&gt;decoded train_rx_* fields&lt;br&gt;selected RX reference time" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="1380" y="480" width="250" height="105" as="geometry" />
+        <mxCell id="rx-adapter" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;RX Parser / Adapter&lt;/b&gt;&lt;br&gt;&lt;br&gt;decoded train_rx_* fields&lt;br&gt;selected RX reference time" vertex="1">
+          <mxGeometry height="105" width="250" x="1380" y="480" as="geometry" />
         </mxCell>
-        <mxCell id="phy-tx" value="&lt;b&gt;Selected PHY TX&lt;/b&gt;&lt;br&gt;&lt;br&gt;selected channel output&lt;br&gt;point-to-point segment" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="420" y="850" width="285" height="95" as="geometry" />
+        <mxCell id="phy-tx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Selected PHY TX&lt;/b&gt;&lt;br&gt;&lt;br&gt;selected channel output&lt;br&gt;point-to-point segment" vertex="1">
+          <mxGeometry height="95" width="285" x="420" y="850" as="geometry" />
         </mxCell>
-        <mxCell id="phy-rx" value="&lt;b&gt;Selected PHY RX&lt;/b&gt;&lt;br&gt;&lt;br&gt;selected channel input&lt;br&gt;point-to-point segment" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="1095" y="850" width="285" height="95" as="geometry" />
+        <mxCell id="phy-rx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Selected PHY RX&lt;/b&gt;&lt;br&gt;&lt;br&gt;selected channel input&lt;br&gt;point-to-point segment" vertex="1">
+          <mxGeometry height="95" width="285" x="1095" y="850" as="geometry" />
         </mxCell>
-        <mxCell id="rule" value="Rule: the training FSM does not drive PHY pins directly. Host adapters map it to Ethernet, RS-485, or custom links." style="text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontColor=#DC2626;align=left;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="70" y="1035" width="1350" height="30" as="geometry" />
+        <mxCell id="rule" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontColor=#DC2626;align=left;verticalAlign=middle;" value="Rule: the training FSM does not drive PHY pins directly. Host adapters map it to Ethernet, RS-485, or custom links." vertex="1">
+          <mxGeometry height="30" width="1350" x="70" y="1035" as="geometry" />
         </mxCell>
-        <mxCell id="e1" value="local_start/config" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="host-controller" target="fsm">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e1" edge="1" parent="1" source="host-controller" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=1;exitY=0.375;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.002;entryY=0.381;entryDx=0;entryDy=0;entryPerimeter=0;" target="fsm" value="local_start/config">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="e2" value="busy/result" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0;exitY=0.75;entryX=1;entryY=0.75;" edge="1" parent="1" source="fsm" target="host-controller">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e2" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0;exitY=0.75;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" value="busy/result">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="540" y="270" as="sourcePoint" />
+            <mxPoint x="420" y="270" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="e3" value="frame fields" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="fsm" target="codec">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e3" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;" value="frame fields">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="850" y="229.9999999999999" as="sourcePoint" />
+            <mxPoint x="1030" y="229.9999999999999" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="e4" value="decoded fields" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0;exitY=0.78;entryX=1;entryY=0.78;" edge="1" parent="1" source="codec" target="fsm">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e4" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0;exitY=0.78;entryX=1;entryY=0.78;" value="decoded fields">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="269.9999999999999" as="sourcePoint" />
+            <mxPoint x="850" y="269.9999999999999" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="e5" value="tx_payload_flat&lt;br&gt;train_tx_valid" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="codec" target="tx-adapter">
+        <mxCell id="e5" edge="1" parent="1" source="codec" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0.209;exitY=1.008;exitDx=0;exitDy=0;exitPerimeter=0;" target="tx-adapter" value="tx_payload_flat&lt;br&gt;train_tx_valid">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="980" y="360" />
+              <mxPoint x="1100" y="350" />
+              <mxPoint x="1060" y="350" />
               <mxPoint x="295" y="360" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e6" value="FIFO read" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="tx-adapter" target="mac-tx">
+        <mxCell id="e6" edge="1" parent="1" source="tx-adapter" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" target="mac-tx" value="FIFO read">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e7" value="MAC frame" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="mac-tx" target="phy-tx">
+        <mxCell id="e7" edge="1" parent="1" source="mac-tx" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" value="MAC frame">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="660" y="774" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="phy-tx" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" target="phy-rx" value="adjacent point-to-point link">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e8" value="adjacent point-to-point link" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="phy-tx" target="phy-rx">
+        <mxCell id="e9" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" target="mac-rx" value="raw RX frame">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1140" y="770" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="mac-rx" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" target="rx-adapter" value="CRC OK">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e9" value="raw RX frame" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="phy-rx" target="mac-rx">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e10" value="CRC OK" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="mac-rx" target="rx-adapter">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e11" value="train_rx_* fields&lt;br&gt;train_rx_ref_time" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="rx-adapter" target="codec">
+        <mxCell id="e11" edge="1" parent="1" source="rx-adapter" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" target="codec" value="train_rx_* fields&lt;br&gt;train_rx_ref_time">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1505" y="360" />
