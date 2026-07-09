@@ -1,0 +1,67 @@
+<mxfile host="app.diagrams.net" modified="2026-07-09T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="lltsm-external-interface" name="LLTSM MAC-based external interface">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="External Interface, Layered View" style="text;html=1;strokeColor=none;fillColor=none;fontSize=34;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="50" y="32" width="760" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Internal FSM and codec hidden. Ports are grouped by host control, TX adapter, RX adapter, and MAC/PHY path." style="text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontColor=#475569;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="50" y="78" width="1120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="layer-host" value="Host Control Boundary" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EAF2FF;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" vertex="1" parent="1">
+          <mxGeometry x="45" y="125" width="1710" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="layer-fsm" value="Training FSM Block" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EEF2FF;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" vertex="1" parent="1">
+          <mxGeometry x="45" y="375" width="1710" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="layer-link" value="Link/MAC Adapter Boundary" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#ECFDF3;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" vertex="1" parent="1">
+          <mxGeometry x="45" y="615" width="1710" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="layer-phy" value="PHY Boundary" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF7E6;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" vertex="1" parent="1">
+          <mxGeometry x="45" y="945" width="1710" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="host" value="&lt;b&gt;Host Controller FSM/TOP&lt;/b&gt;&lt;br&gt;&lt;br&gt;clk/rst/training_enable/abort/time_now&lt;br&gt;local_start + node/link/channel/round config&lt;br&gt;result capture and delay-register update" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="500" y="185" width="800" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="fsm-codec" value="&lt;b&gt;Training FSM + Codec&lt;/b&gt;&lt;br&gt;&lt;br&gt;generates and receives fixed training frames&lt;br&gt;measures trained path delay between selected reference points" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="535" y="430" width="730" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="tx-adapter" value="&lt;b&gt;TX Training-Frame Adapter&lt;/b&gt;&lt;br&gt;&lt;br&gt;inputs from FSM: train_tx_valid, frame_type, frame_words,&lt;br&gt;src/dst/link/channel/round/sequence, turnaround&lt;br&gt;output to FSM: train_tx_ready" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="110" y="705" width="650" height="135" as="geometry" />
+        </mxCell>
+        <mxCell id="rx-adapter" value="&lt;b&gt;RX Training-Frame Adapter&lt;/b&gt;&lt;br&gt;&lt;br&gt;outputs to FSM: train_rx_valid, frame_complete, crc_ok,&lt;br&gt;protocol_ok, frame_words, src/dst/link/channel/round/sequence,&lt;br&gt;train_rx_ref_time, train_rx_turnaround" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="705" width="650" height="135" as="geometry" />
+        </mxCell>
+        <mxCell id="mac-phy-tx" value="&lt;b&gt;MAC/PHY TX&lt;/b&gt;&lt;br&gt;&lt;br&gt;normal TX path&lt;br&gt;selected channel" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="325" y="985" width="365" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="mac-phy-rx" value="&lt;b&gt;MAC/PHY RX&lt;/b&gt;&lt;br&gt;&lt;br&gt;normal RX path&lt;br&gt;selected channel" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="985" width="365" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="timing-rule" value="Timing rule: train_tx_ready and train_rx_ref_time must use the same documented reference-point definition used later for compensation." style="text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontColor=#DC2626;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="70" y="1142" width="1480" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="control/config" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="host" target="fsm-codec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="status/result" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0.42;exitY=0;entryX=0.42;entryY=1;" edge="1" parent="1" source="fsm-codec" target="host">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="train_tx_*" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="fsm-codec" target="tx-adapter">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="payload to normal TX path" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="tx-adapter" target="mac-phy-tx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="decoded RX frame" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="mac-phy-rx" target="rx-adapter">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="train_rx_* + ref time" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" edge="1" parent="1" source="rx-adapter" target="fsm-codec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
