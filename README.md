@@ -10,6 +10,8 @@ Included:
 
 - Link training branch FSM RTL
 - Link training branch frame codec RTL
+- Reusable LLTSM TX payload formatter RTL
+- Reusable LLTSM RX payload parser RTL
 - FSM and codec testbenches
 - LLTSM interface/design documents
 - Architecture diagrams
@@ -26,6 +28,8 @@ Excluded:
 ```text
 rtl/ttp_lltsm_branch_fsm.sv
 rtl/ttp_lltsm_branch_codec.sv
+rtl/lltsm_tx_payload_formatter.sv
+rtl/lltsm_rx_payload_parser.sv
 ```
 
 ## Testbenches
@@ -43,24 +47,30 @@ The intended integration path is:
 
 ```text
 Host Communication Controller FSM/TOP
-  -> Link Training Branch FSM + Codec
-  -> TX FIFO / TX Frame Adapter
-  -> MAC / Media Adapter
+  -> Link Training Branch FSM
+  -> LLTSM TX Payload Formatter
+  -> MAC / Link Frame Processing
   -> PHY
   -> adjacent node
   -> PHY
-  -> MAC / Media Adapter
-  -> RX Parser / RX FIFO
-  -> Link Training Branch FSM + Codec
+  -> MAC / Link Frame Processing
+  -> LLTSM RX Payload Parser
+  -> Link Training Branch FSM
 ```
+
+LLTSM only formats and parses the fixed training payload. PHY selection,
+link-frame adaptation, padding, address filtering, SOF/EOF handling, and
+CRC/FCS insertion/checking are MAC/link-frame-layer responsibilities.
 
 The measured result is `trained_path_delay`, not pure physical propagation delay.
 
 ## Key interface groups
 
 - TOP control: `training_enable`, `abort`, `local_start`, node/link/channel/round configuration.
-- TX training-frame adapter: `train_tx_*`.
-- RX training-frame adapter: `train_rx_*`, including `train_rx_ref_time`.
+- TX training semantic fields from FSM: `train_tx_*`.
+- TX payload stream to MAC/link-frame layer: `lltsm_tx_payload_*`.
+- RX payload stream from MAC/link-frame layer: `lltsm_rx_payload_*`.
+- RX training semantic fields to FSM: `train_rx_*`, including `train_rx_ref_time`.
 - Result output: `result_valid`, `result_ok`, `result_rtt_average`, `result_mean_delay`.
 
 ## Active local repository path

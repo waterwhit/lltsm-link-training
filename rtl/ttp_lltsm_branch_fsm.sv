@@ -79,8 +79,8 @@ module ttp_lltsm_branch_fsm #(
     output logic [TIME_WIDTH-1:0]             train_tx_turnaround,
 
     // Local training-frame RX adapter -> local branch.
-    // The adapter provides decoded training fields after frame parsing,
-    // CRC/protocol checks, and the selected RX timestamp reference point.
+    // The adapter provides decoded training fields after link-frame parsing,
+    // external CRC/FCS checking, protocol checks, and selected RX timestamping.
     input  logic                              train_rx_valid,
     input  logic                              train_rx_frame_complete,
     input  logic                              train_rx_crc_ok,

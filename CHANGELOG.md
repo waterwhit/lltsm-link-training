@@ -4,7 +4,7 @@
 
 - Created standalone LLTSM-only repository layout.
 - Froze simplified host-controller-controlled link training branch architecture.
-- Defined MAC/FIFO-based training-frame adapter boundary.
+- Defined the LLTSM payload boundary and kept PHY selection, link framing, and CRC/FCS in the MAC/link-frame layer.
 - Standardized interface naming:
   - `train_tx_*`
   - `train_rx_*`

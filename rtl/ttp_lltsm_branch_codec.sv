@@ -2,10 +2,11 @@
 
 // Resource-minimized codec for the host-controller-controlled link training
 // branch FSM.
-// Eight 16-bit payload words are retained so the common CRC/MFM envelope does
-// not change. Only two frame subtypes are active:
+// Eight 16-bit payload words are retained for compatibility with the external
+// link-frame processing layer. This codec does not generate or check CRC/FCS;
+// the receive-side CRC result is supplied to the FSM as train_rx_crc_ok.
+// Only two frame subtypes are active:
 //   1 = DELAY_REQ, 2 = DELAY_RESP.
-// The existing CRC path appends one CRC word after these eight payload words.
 
 module ttp_lltsm_branch_codec #(
     parameter integer NODE_COUNT       = 10,

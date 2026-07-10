@@ -1,112 +1,84 @@
 <mxfile host="app.diagrams.net" agent="Codex">
   <diagram id="lltsm-mac-architecture" name="LLTSM MAC-based architecture">
-    <mxGraphModel dx="1664" dy="985" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1120" math="0" shadow="0">
+    <mxGraphModel dx="1010" dy="561" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1120" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=34;fontStyle=1;align=left;verticalAlign=middle;" value="Physical Link Delay Training FSM Integration" vertex="1">
-          <mxGeometry height="44" width="820" x="50" y="32" as="geometry" />
+        <mxCell id="controller" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=18;spacingTop=14;" value="控制器 FSM/TOP" vertex="1">
+          <mxGeometry height="180" width="1630" x="85" y="160" as="geometry" />
         </mxCell>
-        <mxCell id="subtitle" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontColor=#475569;align=left;verticalAlign=middle;" value="Reusable branch FSM. Training frames pass through the host controller FIFO/MAC/PHY path." vertex="1">
-          <mxGeometry height="30" width="920" x="50" y="78" as="geometry" />
+        <mxCell id="lltsm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;LLTSM&lt;/b&gt;&lt;br&gt;&lt;br&gt;DELAY_REQ / DELAY_RESP&lt;br&gt;RTT均值统计&lt;br&gt;训练路径时延" vertex="1">
+          <mxGeometry height="115" width="275" x="660" y="205" as="geometry" />
         </mxCell>
-        <mxCell id="layer-host" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EAF2FF;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" value="Host Control Layer" vertex="1">
-          <mxGeometry height="210" width="1355" x="45" y="120" as="geometry" />
+        <mxCell id="codec" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;训练帧编解码&lt;/b&gt;&lt;br&gt;&lt;br&gt;固定格式封装/解析&lt;br&gt;8 x 16-bit 字&lt;br&gt;协议标识检查" vertex="1">
+          <mxGeometry height="115" width="355" x="1120" y="205" as="geometry" />
         </mxCell>
-        <mxCell id="layer-mac" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#ECFDF3;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" value="Training Frame Adapter / FIFO / MAC Layer" vertex="1">
-          <mxGeometry height="365" width="1710" x="45" y="370" as="geometry" />
+        <mxCell id="fifo-layer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#ECFDF3;strokeColor=#94A3B8;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=18;spacingTop=14;" value="LLTSM Payload 格式化 / 解析层" vertex="1">
+          <mxGeometry height="200" width="1710" x="45" y="390" as="geometry" />
         </mxCell>
-        <mxCell id="layer-phy" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF7E6;strokeColor=#CBD5E1;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=16;" value="PHY Layer" vertex="1">
-          <mxGeometry height="230" width="1710" x="45" y="775" as="geometry" />
+        <mxCell id="tx-fifo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;LLTSM TX Payload Formatter&lt;/b&gt;&lt;br&gt;&lt;br&gt;train_tx_* -&gt; lltsm_tx_payload_*&lt;br&gt;输出链路/通道元数据" vertex="1">
+          <mxGeometry height="95" width="320" x="180" y="460" as="geometry" />
         </mxCell>
-        <mxCell id="host-controller" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Host Controller&lt;/b&gt;&lt;br&gt;&lt;br&gt;freeze traffic&lt;br&gt;select link/channel&lt;br&gt;start/store result" vertex="1">
-          <mxGeometry height="120" width="330" x="90" y="195" as="geometry" />
+        <mxCell id="rx-fifo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;LLTSM RX Payload Parser&lt;/b&gt;&lt;br&gt;&lt;br&gt;lltsm_rx_payload_* -&gt; train_rx_*&lt;br&gt;使用 crc_ok / ref_time" vertex="1">
+          <mxGeometry height="95" width="320" x="1300" y="460" as="geometry" />
         </mxCell>
-        <mxCell id="fsm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Training Branch FSM&lt;/b&gt;&lt;br&gt;&lt;br&gt;DELAY_REQ / DELAY_RESP&lt;br&gt;RTT average&lt;br&gt;trained_path_delay" vertex="1">
-          <mxGeometry height="120" width="310" x="540" y="195" as="geometry" />
+        <mxCell id="mac-layer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#F0F9FF;strokeColor=#94A3B8;fontSize=24;fontStyle=1;align=left;verticalAlign=top;spacingLeft=18;spacingTop=14;" value="链路帧处理层（MAC / RS-485 / 自定义链路）" vertex="1">
+          <mxGeometry height="295" width="1710" x="45" y="630" as="geometry" />
         </mxCell>
-        <mxCell id="codec" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Training Frame Codec&lt;/b&gt;&lt;br&gt;&lt;br&gt;pack/unpack fixed&lt;br&gt;8 x 16-bit words&lt;br&gt;protocol tag check" vertex="1">
-          <mxGeometry height="120" width="330" x="1030" y="195" as="geometry" />
+        <mxCell id="mac-tx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;链路发送帧处理&lt;/b&gt;&lt;br&gt;&lt;br&gt;封装链路地址/类型/长度&lt;br&gt;以太网生成 FCS&lt;br&gt;RS-485/自定义链路生成 CRC" vertex="1">
+          <mxGeometry height="120" width="335" x="210" y="690" as="geometry" />
         </mxCell>
-        <mxCell id="tx-adapter" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;TX FIFO / Adapter&lt;/b&gt;&lt;br&gt;&lt;br&gt;accept train_tx_* fields&lt;br&gt;selected TX reference point" vertex="1">
-          <mxGeometry height="105" width="250" x="170" y="480" as="geometry" />
+        <mxCell id="phy-tx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;选定 PHY 发送端&lt;/b&gt;&lt;br&gt;&lt;br&gt;链路帧层底部选通&lt;br&gt;输出到指定物理通道" vertex="1">
+          <mxGeometry height="120" width="370" x="700" y="690" as="geometry" />
         </mxCell>
-        <mxCell id="mac-tx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;CRC + Header + MAC TX&lt;/b&gt;&lt;br&gt;&lt;br&gt;normal controller send path&lt;br&gt;Ethernet / RS-485 / custom" vertex="1">
-          <mxGeometry height="145" width="275" x="525" y="460" as="geometry" />
+        <mxCell id="mac-rx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;链路接收帧处理&lt;/b&gt;&lt;br&gt;&lt;br&gt;接收链路帧&lt;br&gt;校验 FCS/CRC&lt;br&gt;输出 CRC/协议状态" vertex="1">
+          <mxGeometry height="120" width="335" x="1225" y="690" as="geometry" />
         </mxCell>
-        <mxCell id="mac-rx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;MAC RX + CRC Check&lt;/b&gt;&lt;br&gt;&lt;br&gt;normal controller receive path&lt;br&gt;CRC/protocol status" vertex="1">
-          <mxGeometry height="145" width="275" x="1000" y="460" as="geometry" />
+        <mxCell id="medium" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;相邻点到点物理链路&lt;/b&gt;&lt;br&gt;选定 PHY 发送端 -&gt; 相邻节点 -&gt; 选定 PHY 接收端" vertex="1">
+          <mxGeometry height="110" width="1680" x="50" y="970" as="geometry" />
         </mxCell>
-        <mxCell id="rx-adapter" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;RX Parser / Adapter&lt;/b&gt;&lt;br&gt;&lt;br&gt;decoded train_rx_* fields&lt;br&gt;selected RX reference time" vertex="1">
-          <mxGeometry height="105" width="250" x="1380" y="480" as="geometry" />
-        </mxCell>
-        <mxCell id="phy-tx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Selected PHY TX&lt;/b&gt;&lt;br&gt;&lt;br&gt;selected channel output&lt;br&gt;point-to-point segment" vertex="1">
-          <mxGeometry height="95" width="285" x="420" y="850" as="geometry" />
-        </mxCell>
-        <mxCell id="phy-rx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;fontSize=16;align=center;verticalAlign=middle;" value="&lt;b&gt;Selected PHY RX&lt;/b&gt;&lt;br&gt;&lt;br&gt;selected channel input&lt;br&gt;point-to-point segment" vertex="1">
-          <mxGeometry height="95" width="285" x="1095" y="850" as="geometry" />
-        </mxCell>
-        <mxCell id="rule" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontColor=#DC2626;align=left;verticalAlign=middle;" value="Rule: the training FSM does not drive PHY pins directly. Host adapters map it to Ethernet, RS-485, or custom links." vertex="1">
-          <mxGeometry height="30" width="1350" x="70" y="1035" as="geometry" />
-        </mxCell>
-        <mxCell id="e1" edge="1" parent="1" source="host-controller" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=1;exitY=0.375;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.002;entryY=0.381;entryDx=0;entryDy=0;entryPerimeter=0;" target="fsm" value="local_start/config">
+        <mxCell id="e-control" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;" value="启动/配置/时间基准">
           <mxGeometry relative="1" as="geometry">
-            <Array as="points" />
+            <mxPoint as="offset" />
+            <mxPoint x="470" y="240" as="sourcePoint" />
+            <mxPoint x="660" y="240.00178398293585" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="e2" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0;exitY=0.75;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" value="busy/result">
+        <mxCell id="e-status" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;" value="状态/结果">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="540" y="270" as="sourcePoint" />
-            <mxPoint x="420" y="270" as="targetPoint" />
+            <mxPoint x="660" y="288" as="sourcePoint" />
+            <mxPoint x="470" y="288" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="e3" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;" value="frame fields">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="850" y="229.9999999999999" as="sourcePoint" />
-            <mxPoint x="1030" y="229.9999999999999" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e4" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0;exitY=0.78;entryX=1;entryY=0.78;" value="decoded fields">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1030" y="269.9999999999999" as="sourcePoint" />
-            <mxPoint x="850" y="269.9999999999999" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e5" edge="1" parent="1" source="codec" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0.209;exitY=1.008;exitDx=0;exitDy=0;exitPerimeter=0;" target="tx-adapter" value="tx_payload_flat&lt;br&gt;train_tx_valid">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1100" y="350" />
-              <mxPoint x="1060" y="350" />
-              <mxPoint x="295" y="360" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e6" edge="1" parent="1" source="tx-adapter" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" target="mac-tx" value="FIFO read">
+        <mxCell id="e-fields" edge="1" parent="1" source="lltsm" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;" target="codec" value="训练 payload 字段">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e7" edge="1" parent="1" source="mac-tx" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" value="MAC frame">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="660" y="774" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e8" edge="1" parent="1" source="phy-tx" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" target="phy-rx" value="adjacent point-to-point link">
+        <mxCell id="e-decoded" edge="1" parent="1" source="codec" style="endArrow=classic;html=1;rounded=0;strokeColor=#2563EB;strokeWidth=4;fontSize=14;fontColor=#475569;exitX=0;exitY=0.72;entryX=1;entryY=0.72;" target="lltsm" value="解析后字段">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e9" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" target="mac-rx" value="raw RX frame">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1140" y="770" as="sourcePoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e10" edge="1" parent="1" source="mac-rx" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" target="rx-adapter" value="CRC OK">
+        <mxCell id="e-tx-fifo" edge="1" parent="1" source="codec" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" target="tx-fifo" value="发送训练帧总线&lt;br&gt;train_tx_valid">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e11" edge="1" parent="1" source="rx-adapter" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" target="codec" value="train_rx_* fields&lt;br&gt;train_rx_ref_time">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1505" y="360" />
-              <mxPoint x="1180" y="360" />
-            </Array>
-          </mxGeometry>
+        <mxCell id="e-rx-fifo" edge="1" parent="1" source="rx-fifo" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" target="codec" value="接收训练 payload 字段&lt;br&gt;train_rx_ref_time">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-fifo-mac" edge="1" parent="1" source="tx-fifo" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" target="mac-tx" value="FIFO 出队&lt;br&gt;训练帧载荷">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-full-frame" edge="1" parent="1" source="mac-tx" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" target="phy-tx" value="完整链路帧">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-phy-send" edge="1" parent="1" source="phy-tx" style="endArrow=classic;html=1;rounded=0;strokeColor=#059669;strokeWidth=4;fontSize=14;fontColor=#475569;" target="medium" value="PHY 发送">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-phy-rx" edge="1" parent="1" source="medium" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" target="mac-rx" value="PHY 接收帧">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-rx-up" edge="1" parent="1" source="mac-rx" style="endArrow=classic;html=1;rounded=0;strokeColor=#D97706;strokeWidth=4;fontSize=14;fontColor=#475569;" target="rx-fifo" value="CRC 正常&lt;br&gt;解析后训练帧">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vd3wdv_VX2iRHhNmHiSK-5" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;span style=&quot;font-size: 16px;&quot;&gt;冻结业务流量&lt;/span&gt;&lt;br style=&quot;font-size: 16px;&quot;&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;选择训练链路&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="140" x="110" y="205" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
