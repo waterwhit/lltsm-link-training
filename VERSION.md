@@ -1,23 +1,24 @@
 # Version
 
-Current baseline:
+Current release:
 
 ```text
-v0.1-lltsm-branch-frozen
+v0.2.0
 ```
 
-Date: 2026-07-08
+Date: 2026-07-10
 
 Scope:
 
-- Reusable physical-link delay training branch FSM.
-- Fixed training frames carried by the host controller FIFO/MAC path.
-- A/B or redundant channels trained separately by host-controller scheduling.
-- Business traffic frozen by the host controller during training.
-- Result interpreted as `trained_path_delay`.
-- Asymmetry correction reserved for later calibration.
+- Two-module LLTSM architecture: `lltsm_fsm` and `lltsm_link`.
+- Communication-controller TOP owns entry to and exit from the LLTSM branch.
+- Fixed 128-bit training payload carried through asymmetric TX/RX FIFOs.
+- Training response preserves the MAC frame class and payload bit-for-bit.
+- MAC owns link headers, padding, CRC/FCS, and PHY/channel selection.
+- Optional fixed responder-delay compensation for the trained path result.
 
 Verified snapshot:
 
-- FSM behavioral testbench passed.
-- FSM Vivado OOC synthesis passed for Xilinx 7K325T.
+- Vivado 2019.2 SystemVerilog compile and elaboration passed.
+- Two-node system simulation passed bad-frame rejection, exact echo,
+  repeated RTT measurement, result reporting, and controller-owned abort.

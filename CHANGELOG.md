@@ -1,14 +1,14 @@
 # Changelog
 
-## v0.1-lltsm-branch-frozen - 2026-07-08
+## v0.2.0 - 2026-07-10
 
-- Created standalone LLTSM-only repository layout.
-- Froze simplified host-controller-controlled link training branch architecture.
-- Defined the LLTSM payload boundary and kept PHY selection, link framing, and CRC/FCS in the MAC/link-frame layer.
-- Standardized interface naming:
-  - `train_tx_*`
-  - `train_rx_*`
-  - `train_rx_ref_time`
-- Defined result as `trained_path_delay`.
-- Fixed `train_tx_turnaround` semantics so TX adapter backpressure is included in responder turnaround.
-- Declared `E:\aaworkspace\lltsm-link-training` as the active standalone local repository path.
+- Reduced the LLTSM RTL architecture to `lltsm_fsm` and `lltsm_link`.
+- Defined LLTSM FSM as a communication-controller branch controlled by TOP.
+- Merged fixed-frame coding, TX formatting, RX parsing, response validation,
+  and timestamp latching into `lltsm_link`.
+- Changed the MAC boundary to wide-side interfaces for asymmetric TX/RX FIFOs.
+- Kept MAC link-header generation, padding, CRC/FCS, and PHY selection outside
+  LLTSM.
+- Made the training response an exact echo of frame class and 128-bit payload.
+- Added a system-level test for rejection, exact echo, measurement, and abort.
+- Removed legacy protocol-specific identifiers from RTL and simulation names.

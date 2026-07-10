@@ -3,179 +3,182 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "docs" / "images"
+OUT = ROOT / "docs" / "images"
 
-
-def font(size, bold=False):
-    candidates = [
-        r"C:\Windows\Fonts\msyhbd.ttc" if bold else r"C:\Windows\Fonts\msyh.ttc",
-        r"C:\Windows\Fonts\simhei.ttf",
-        r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf",
-    ]
-    for item in candidates:
-        if item and Path(item).exists():
-            return ImageFont.truetype(item, size)
-    return ImageFont.load_default()
-
-
-F_TITLE = font(34, True)
-F_LAYER = font(24, True)
-F_BOX = font(20, True)
-F_TEXT = font(16)
-F_SMALL = font(14)
-
-COL = {
+COLORS = {
     "bg": "#F8FAFC",
-    "control": "#EAF2FF",
-    "fifo": "#ECFDF3",
-    "mac": "#F0F9FF",
-    "phy": "#FFF7E6",
-    "box": "#FFFFFF",
+    "ink": "#0F172A",
     "muted": "#475569",
+    "line": "#334155",
     "blue": "#2563EB",
     "green": "#059669",
     "orange": "#D97706",
     "red": "#DC2626",
+    "control": "#EAF2FF",
+    "link": "#ECFDF3",
+    "mac": "#FFF7E6",
+    "white": "#FFFFFF",
 }
 
 
-def rounded(draw, xy, fill, outline="#334155", width=2, radius=18):
-    draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
+def font(size, bold=False):
+    candidates = [
+        Path(r"C:\Windows\Fonts\msyhbd.ttc" if bold else r"C:\Windows\Fonts\msyh.ttc"),
+        Path(r"C:\Windows\Fonts\simhei.ttf"),
+        Path(r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf"),
+    ]
+    for path in candidates:
+        if path.exists():
+            return ImageFont.truetype(str(path), size)
+    return ImageFont.load_default()
 
 
-def draw_text_center(draw, xy, lines, fnt=F_TEXT, fill="#334155"):
-    x1, y1, x2, y2 = xy
-    line_h = draw.textbbox((0, 0), "Ag", font=fnt)[3] + 6
-    y = y1 + ((y2 - y1) - line_h * len(lines)) / 2
-    for line in lines:
-        w = draw.textbbox((0, 0), line, font=fnt)[2]
-        draw.text((x1 + (x2 - x1 - w) / 2, y), line, font=fnt, fill=fill)
-        y += line_h
+TITLE = font(34, True)
+LAYER = font(24, True)
+BOX_TITLE = font(20, True)
+TEXT = font(16)
+SMALL = font(14)
 
 
-def box(draw, xy, title, body, fill=COL["box"]):
-    rounded(draw, xy, fill)
-    draw.text((xy[0] + 16, xy[1] + 12), title, font=F_BOX, fill="#111827")
-    draw_text_center(draw, (xy[0] + 12, xy[1] + 45, xy[2] - 12, xy[3] - 10), body.split("\n"))
+def centered_lines(draw, rect, lines, text_font=TEXT, color=COLORS["ink"]):
+    x1, y1, x2, y2 = rect
+    spacing = 8
+    boxes = [draw.textbbox((0, 0), line, font=text_font) for line in lines]
+    heights = [box[3] - box[1] for box in boxes]
+    total = sum(heights) + spacing * max(0, len(lines) - 1)
+    y = y1 + (y2 - y1 - total) / 2
+    for line, box, height in zip(lines, boxes, heights):
+        width = box[2] - box[0]
+        draw.text((x1 + (x2 - x1 - width) / 2, y), line, font=text_font, fill=color)
+        y += height + spacing
 
 
-def container(draw, xy, title, fill, outline="#94A3B8"):
-    rounded(draw, xy, fill, outline, 2, 22)
-    draw.text((xy[0] + 18, xy[1] + 14), title, font=F_LAYER, fill="#0F172A")
+def box(draw, rect, title, lines, outline=COLORS["line"], fill=COLORS["white"]):
+    draw.rounded_rectangle(rect, radius=8, fill=fill, outline=outline, width=3)
+    x1, y1, x2, _ = rect
+    title_box = draw.textbbox((0, 0), title, font=BOX_TITLE)
+    title_width = title_box[2] - title_box[0]
+    draw.text((x1 + (x2 - x1 - title_width) / 2, y1 + 14), title, font=BOX_TITLE, fill=COLORS["ink"])
+    centered_lines(draw, (x1 + 14, y1 + 52, x2 - 14, rect[3] - 12), lines)
 
 
-def arrow(draw, a, b, color, label=None, offset=(0, 0)):
-    draw.line([a, b], fill=color, width=4)
-    x1, y1 = a
-    x2, y2 = b
+def layer(draw, rect, title, fill):
+    draw.rounded_rectangle(rect, radius=12, fill=fill, outline="#94A3B8", width=2)
+    draw.text((rect[0] + 18, rect[1] + 14), title, font=LAYER, fill=COLORS["ink"])
+
+
+def arrow(draw, start, end, color, label=None, label_pos=None, both=False):
+    draw.line([start, end], fill=color, width=4)
     import math
 
-    ang = math.atan2(y2 - y1, x2 - x1)
-    size = 13
-    pts = [
-        (x2, y2),
-        (x2 - size * math.cos(ang - math.pi / 6), y2 - size * math.sin(ang - math.pi / 6)),
-        (x2 - size * math.cos(ang + math.pi / 6), y2 - size * math.sin(ang + math.pi / 6)),
-    ]
-    draw.polygon(pts, fill=color)
+    def head(point, angle):
+        size = 14
+        x, y = point
+        points = [
+            (x, y),
+            (x - size * math.cos(angle - math.pi / 6), y - size * math.sin(angle - math.pi / 6)),
+            (x - size * math.cos(angle + math.pi / 6), y - size * math.sin(angle + math.pi / 6)),
+        ]
+        draw.polygon(points, fill=color)
+
+    angle = math.atan2(end[1] - start[1], end[0] - start[0])
+    head(end, angle)
+    if both:
+        head(start, angle + math.pi)
     if label:
-        tx = (x1 + x2) / 2 + offset[0]
-        ty = (y1 + y2) / 2 + offset[1]
-        lines = label.split("\n")
-        line_h = draw.textbbox((0, 0), "Ag", font=F_SMALL)[3] + 6
-        width = max(draw.textbbox((0, 0), line, font=F_SMALL)[2] for line in lines)
-        rounded(draw, (tx - 8, ty - 6, tx + width + 8, ty + line_h * len(lines) + 4), COL["bg"], "#CBD5E1", 1, 7)
-        for i, line in enumerate(lines):
-            draw.text((tx, ty + i * line_h), line, font=F_SMALL, fill=COL["muted"])
+        x, y = label_pos or ((start[0] + end[0]) / 2, (start[1] + end[1]) / 2)
+        bbox = draw.multiline_textbbox((0, 0), label, font=SMALL, spacing=5, align="center")
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
+        draw.rounded_rectangle((x - width / 2 - 8, y - height / 2 - 5,
+                                x + width / 2 + 8, y + height / 2 + 5),
+                               radius=5, fill=COLORS["bg"], outline="#CBD5E1", width=1)
+        draw.multiline_text((x - width / 2, y - height / 2), label, font=SMALL,
+                            fill=COLORS["muted"], spacing=5, align="center")
 
 
-def draw_architecture(path):
-    img = Image.new("RGB", (1800, 1120), COL["bg"])
-    draw = ImageDraw.Draw(img)
-    draw.text((50, 32), "物理链路时延训练状态机集成", font=F_TITLE, fill="#111827")
-    draw.text((50, 78), "LLTSM 是通信控制器内部训练子状态机；训练帧先经 FIFO/适配，再进入链路帧处理层。",
-              font=F_TEXT, fill=COL["muted"])
-
-    container(draw, (45, 125, 1755, 350), "通信控制层", COL["control"])
-    container(draw, (85, 178, 1715, 325), "通信控制器 FSM/TOP", "#FFFFFF", "#64748B")
-    box(draw, (120, 225, 420, 305), "业务通信主状态机", "冻结业务流量\n选择训练链路/通道")
-    box(draw, (570, 205, 925, 320), "LLTSM 链路训练子状态机", "DELAY_REQ / DELAY_RESP\nRTT 均值统计\n训练路径时延")
-    box(draw, (1120, 205, 1475, 320), "训练帧编解码子模块", "固定格式封装/解析\n8 x 16-bit 字\n协议标识检查")
-    arrow(draw, (420, 250), (570, 250), COL["blue"], "控制器 -> LLTSM\n启动/配置/时间基准", (-75, -58))
-    arrow(draw, (570, 292), (420, 292), COL["blue"], "LLTSM -> 控制器\n状态/结果", (-190, 14))
-    arrow(draw, (925, 250), (1120, 250), COL["blue"], "训练帧字段", (20, -42))
-    arrow(draw, (1120, 292), (925, 292), COL["blue"], "解析字段", (-60, 14))
-
-    container(draw, (45, 390, 1755, 590), "链路训练帧适配 / FIFO 层", COL["fifo"])
-    box(draw, (180, 460, 500, 555), "发送训练帧 FIFO / 适配器", "train_tx_* 字段入队\n等待 train_tx_ready")
-    box(draw, (1300, 460, 1620, 555), "接收训练帧解析 / 适配器", "输出 train_rx_* 字段\n接收参考时间")
-    arrow(draw, (1265, 320), (340, 460), COL["green"], "发送训练帧总线\ntrain_tx_valid", (-135, -40))
-    arrow(draw, (1300, 485), (1280, 320), COL["orange"], "接收训练帧字段\ntrain_rx_ref_time", (-155, -32))
-
-    container(draw, (45, 630, 1755, 925), "链路帧处理层（MAC / RS-485 / 自定义链路）", COL["mac"])
-    box(draw, (210, 690, 545, 810), "链路发送帧处理", "封装链路地址/类型/长度\n以太网生成 FCS\nRS-485/自定义链路生成 CRC")
-    box(draw, (700, 690, 1070, 810), "选定 PHY 发送端", "链路帧层底部选通\n输出到指定物理通道")
-    box(draw, (1225, 690, 1560, 810), "链路接收帧处理", "接收链路帧\n校验 FCS/CRC\n输出 CRC/协议状态")
-    box(draw, (700, 835, 1070, 900), "相邻点到点物理链路", "选定 PHY 发送端 -> 相邻节点 -> 选定 PHY 接收端")
-    arrow(draw, (500, 508), (325, 690), COL["green"], "FIFO 出队\n训练帧载荷", (-92, 12))
-    arrow(draw, (545, 750), (700, 750), COL["green"], "完整链路帧", (-10, -42))
-    arrow(draw, (885, 810), (885, 835), COL["green"], "PHY 发送", (18, -8))
-    arrow(draw, (1070, 868), (1225, 750), COL["orange"], "PHY 接收帧", (-20, 18))
-    arrow(draw, (1225, 725), (1620, 508), COL["orange"], "CRC 正常\n解析后训练帧", (20, -30))
-
-    container(draw, (45, 960, 1755, 1030), "物理介质 / 相邻节点", COL["phy"])
-    draw.text((70, 1060), "CRC/FCS 位置：统一放在链路帧处理层；以太网使用 MAC FCS，RS-485/自定义链路使用其帧 CRC。",
-              font=F_TEXT, fill=COL["red"])
-    img.save(path)
+def header(draw, title, subtitle):
+    draw.text((50, 30), title, font=TITLE, fill=COLORS["ink"])
+    draw.text((50, 82), subtitle, font=TEXT, fill=COLORS["muted"])
 
 
-def draw_external_interface(path):
-    img = Image.new("RGB", (1800, 1200), COL["bg"])
-    draw = ImageDraw.Draw(img)
-    draw.text((50, 32), "外部接口分层视图", font=F_TITLE, fill="#111827")
-    draw.text((50, 78), "通信控制器包住 LLTSM；训练帧先进入 FIFO/适配层，再进入链路帧处理层完成地址封装和 CRC/FCS。",
-              font=F_TEXT, fill=COL["muted"])
+def architecture(path):
+    image = Image.new("RGB", (1800, 1200), COLORS["bg"])
+    draw = ImageDraw.Draw(image)
+    header(draw, "LLTSM 两模块集成架构",
+           "控制器 TOP 管理分支跳转；LLTSM_LINK 处理固定训练帧；链路字头与 CRC/FCS 由 MAC 完成。")
 
-    container(draw, (45, 125, 1755, 440), "通信控制器边界", COL["control"])
-    box(draw, (100, 225, 520, 365), "业务通信 FSM / 调度器", "正常通信控制\n训练期间冻结业务帧\n选择邻接链路和通道")
-    box(draw, (700, 205, 1130, 385), "LLTSM 训练子状态机", "接收控制器启动参数\n生成/接收固定训练帧\n输出训练状态和时延结果")
-    box(draw, (1270, 225, 1650, 365), "时延结果寄存器", "result_valid / result_ok\nresult_rtt_average\nresult_mean_delay")
-    arrow(draw, (520, 255), (700, 255), COL["blue"],
-          "控制器 -> LLTSM 控制接口\ntraining_enable, abort, time_now\nlocal_start, local_node_id\nlocal_neighbor_node_id\nlocal_link_id, local_channel_id\nlocal_training_round_id",
-          (-118, -118))
-    arrow(draw, (700, 330), (520, 330), COL["blue"],
-          "LLTSM -> 控制器状态/结果\nlocal_start_ready, busy, done\nresult_valid, result_ok\nresult_rtt_average, result_mean_delay\nbranch_state",
-          (-250, 20))
-    arrow(draw, (1130, 300), (1270, 300), COL["blue"], "结果写入", (-20, -42))
+    layer(draw, (45, 130, 1755, 470), "通信总线控制器", COLORS["control"])
+    box(draw, (100, 220, 520, 405), "控制器 TOP / 主 FSM",
+        ["进入/退出训练分支", "冻结业务流量并保持配置", "超时、中止与结果存储"])
+    box(draw, (690, 220, 1110, 405), "LLTSM_FSM",
+        ["分支状态调度", "重复测量与 RTT 均值", "branch_done 上报 TOP"], COLORS["blue"])
+    box(draw, (1280, 220, 1700, 405), "LLTSM_LINK",
+        ["生成固定 128-bit TRAIN_FRAME", "原样应答与精确比较", "校验后锁存接收时间戳"], COLORS["green"])
+    arrow(draw, (520, 310), (690, 310), COLORS["blue"], "分支控制 / 状态结果", (605, 275), True)
+    arrow(draw, (1110, 310), (1280, 310), COLORS["green"], "发送命令 / 接收事件", (1195, 275), True)
 
-    container(draw, (45, 475, 1755, 700), "链路训练帧适配 / FIFO 层", COL["fifo"])
-    box(draw, (120, 545, 760, 655), "发送训练帧 FIFO / 适配器",
-        "来自 LLTSM：train_tx_valid、帧类型、帧字、源/目的节点\n链路/通道/轮次、序号、周转时间\n返回 LLTSM：train_tx_ready")
-    box(draw, (1040, 545, 1680, 655), "接收训练帧解析 / 适配器",
-        "送往 LLTSM：train_rx_valid、整帧完成、CRC 正常、协议正常\n帧字、源/目的节点、链路/通道/轮次、序号\n接收参考时间、响应周转时间")
-    arrow(draw, (835, 385), (440, 545), COL["green"], "发送训练帧接口", (-120, -12))
-    arrow(draw, (1360, 545), (1015, 385), COL["orange"], "接收训练帧接口 + 参考时间", (18, -30))
+    layer(draw, (45, 520, 1755, 805), "FIFO 与 MAC 边界", COLORS["link"])
+    box(draw, (100, 610, 500, 750), "TX 异宽 FIFO",
+        ["LLTSM：128-bit 宽写口", "MAC：本地位宽读口", "完整负载一次入队"])
+    box(draw, (700, 590, 1100, 770), "MAC / 链路帧处理",
+        ["添加/识别训练特殊字头", "地址、长度、填充", "CRC/FCS 与 PHY 选择"], COLORS["orange"])
+    box(draw, (1300, 610, 1700, 750), "RX 异宽 FIFO",
+        ["MAC：本地位宽写口", "LLTSM：128-bit 宽读口", "CRC 状态和时间戳对齐"])
+    arrow(draw, (1490, 405), (300, 610), COLORS["green"], "128-bit 宽写", (870, 490))
+    arrow(draw, (500, 680), (700, 680), COLORS["green"], "窄口出队")
+    arrow(draw, (1100, 680), (1300, 680), COLORS["orange"], "去除字头与 CRC")
+    arrow(draw, (1500, 610), (1510, 405), COLORS["orange"], "负载 + 状态 + 时间戳", (1595, 505))
 
-    container(draw, (45, 735, 1755, 1040), "链路帧处理层（MAC / RS-485 / 自定义链路）", COL["mac"])
-    box(draw, (170, 805, 520, 925), "链路发送帧处理", "封装链路地址/类型/长度\n以太网生成 FCS\nRS-485/自定义链路生成 CRC")
-    box(draw, (705, 805, 1095, 925), "选定 PHY 发送端", "链路帧层底部选通\n连接指定物理通道")
-    box(draw, (1280, 805, 1630, 925), "链路接收帧处理", "接收链路帧\n校验 FCS/CRC\n输出 CRC/协议状态")
-    arrow(draw, (440, 655), (345, 805), COL["green"], "训练帧载荷出队", (-80, 6))
-    arrow(draw, (520, 865), (705, 865), COL["green"], "完整链路帧", (-20, -42))
-    arrow(draw, (1095, 865), (1280, 865), COL["orange"], "来自选定接收通道", (-30, -42))
-    arrow(draw, (1280, 835), (1360, 655), COL["orange"], "CRC 正常后上送", (24, -12))
+    layer(draw, (45, 850, 1755, 1030), "物理层", COLORS["mac"])
+    box(draw, (650, 900, 1150, 995), "选定 PHY 与相邻节点", ["训练帧沿现有业务链路收发"])
+    arrow(draw, (900, 770), (900, 900), COLORS["orange"], "完整链路帧", (1000, 835), True)
 
-    container(draw, (45, 1070, 1755, 1140), "物理介质 / 相邻节点", COL["phy"])
-    draw.text((70, 1160), "CRC/FCS：以太网覆盖目的/源 MAC、Length/Type、Payload/Padding；RS-485 覆盖自定义地址/类型/长度/载荷；SOF/EOF/静默间隔/CRC 本身不参与。",
-              font=F_TEXT, fill=COL["red"])
-    img.save(path)
+    note = ("固定应答：训练帧类别不变，128-bit 负载逐位不变。负载中不携带 turnaround；"
+            "若需要单向时延，必须标定固定应答补偿参数。")
+    draw.text((80, 1080), note, font=TEXT, fill=COLORS["red"])
+    image.save(path)
+
+
+def external_interface(path):
+    image = Image.new("RGB", (1800, 1200), COLORS["bg"])
+    draw = ImageDraw.Draw(image)
+    header(draw, "LLTSM 两模块外部接口",
+           "异宽 FIFO 是控制器基础设施，不是额外 LLTSM 收发适配模块。")
+
+    box(draw, (80, 160, 520, 390), "通信控制器 TOP",
+        ["branch_enable / start / abort", "time_now 与稳定配置", "接收 branch_done / result_*"] , fill=COLORS["control"])
+    box(draw, (680, 140, 1120, 410), "LLTSM_FSM",
+        ["request / echo valid-ready", "expect_response", "training_sequence", "接收有效事件与时间戳"], COLORS["blue"])
+    box(draw, (1280, 160, 1720, 390), "LLTSM_LINK",
+        ["固定帧生成与锁存", "结构/目标/CRC 状态检查", "128-bit 应答精确比较"], COLORS["green"], COLORS["link"])
+    arrow(draw, (520, 275), (680, 275), COLORS["blue"], "分支控制 / 结果", (600, 240), True)
+    arrow(draw, (1120, 275), (1280, 275), COLORS["green"], "命令 / 校验事件", (1200, 240), True)
+
+    box(draw, (100, 560, 560, 790), "TX FIFO 宽写侧",
+        ["tx_fifo_full / wr_en", "tx_fifo_wr_data[127:0]", "train_frame / link_id / channel_id"])
+    box(draw, (670, 540, 1130, 810), "MAC / 链路帧处理",
+        ["窄口读取/写入 FIFO", "特殊字头、地址、长度与填充", "CRC/FCS、PHY 选择、RX 时间戳"], COLORS["orange"], COLORS["mac"])
+    box(draw, (1240, 560, 1700, 790), "RX FIFO 宽读侧（FWFT）",
+        ["empty / rd_en", "rx_fifo_rd_data[127:0]", "train_frame / crc_ok / timestamp"])
+    arrow(draw, (1500, 390), (330, 560), COLORS["green"], "完整负载宽写", (900, 475))
+    arrow(draw, (560, 675), (670, 675), COLORS["green"], "MAC 窄读")
+    arrow(draw, (1130, 675), (1240, 675), COLORS["orange"], "MAC 窄写")
+    arrow(draw, (1470, 560), (1500, 390), COLORS["orange"], "宽读 + 对齐 sideband", (1580, 475))
+
+    box(draw, (600, 900, 1200, 1080), "固定 128-bit TRAIN_FRAME",
+        ["字0：固定协议标识    字1：源/目的节点", "字2：轮次/序号    字3：通道/链路", "字4..7：固定训练图样"])
+    draw.text((240, 1135),
+              "MAC 链路字头和 CRC/FCS 不属于 TRAIN_FRAME；应答复用相同帧类别，并逐位原样回送全部负载。",
+              font=TEXT, fill=COLORS["red"])
+    image.save(path)
 
 
 def main():
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    draw_architecture(OUT_DIR / "LLTSM_MAC_based_architecture.png")
-    draw_external_interface(OUT_DIR / "LLTSM_MAC_based_external_interface.png")
-    print(f"Generated diagrams in {OUT_DIR}")
+    OUT.mkdir(parents=True, exist_ok=True)
+    architecture(OUT / "LLTSM_MAC_based_architecture.png")
+    external_interface(OUT / "LLTSM_MAC_based_external_interface.png")
+    print(f"Generated diagrams in {OUT}")
 
 
 if __name__ == "__main__":

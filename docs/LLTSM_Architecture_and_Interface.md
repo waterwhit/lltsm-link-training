@@ -1,443 +1,88 @@
-# Reusable Physical Link Delay Training FSM Architecture and External Interface
+# LLTSM 架构与接口
 
-Generated: 2026-07-07  
-Active RTL:
-
-- `ttp_lltsm_branch_fsm.sv`
-- `ttp_lltsm_branch_codec.sv`
-- `lltsm_tx_payload_formatter.sv`
-- `lltsm_rx_payload_parser.sv`
-
-Frozen delay-definition note:
-
-- See `LLTSM_Trained_Path_Delay_Frozen_Scheme.md`.
-- The standalone module measures `trained_path_delay`, not pure `physical_link_delay`.
-- Current RTL uses `train_tx_*`, `lltsm_tx_payload_*`, `lltsm_rx_payload_*`, `train_rx_*`, and `train_rx_ref_time` to make the LLTSM/MAC boundary explicit.
-
-## 0. Frozen Integration Position: FIFO/MAC/PHY Boundary and Timestamp Reference
-
-The link training branch must not be treated as a direct PHY-driving module. In a host-controller integration, LLTSM generates and parses only the fixed training payload. The MAC/link-frame layer uses LLTSM metadata such as link ID and channel ID to select the training PHY/channel, then adds the required link address/type/length fields, padding, CRC/FCS policy, and PHY-specific framing.
-
-Recommended integration boundary:
-
-- Training FSM boundary: generate and consume `train_tx_*` / `train_rx_*` semantic fields.
-- LLTSM payload boundary: `lltsm_tx_payload_formatter` packs the fixed 8-word training payload; `lltsm_rx_payload_parser` unpacks it after MAC/link-frame checks.
-- MAC/link-frame boundary: select PHY/channel from LLTSM metadata; perform frame header/address/type mapping, padding, FIFO arbitration, SOF/EOF handling, and CRC/FCS insertion/checking.
-- PHY boundary: perform actual electrical, optical, or differential physical transmission.
-
-Frozen timestamp policy:
-
-The current implementation measures trained path delay, not pure physical link propagation delay. The selected timestamp reference point may be placed at the MAC/link-frame payload acceptance boundary on TX and the MAC/link-frame parser output boundary on RX. This is acceptable because normal traffic is frozen during training, so arbitration delay is constrained to a deterministic or negligible value, and later synchronization compensation uses the same reference-point definition.
-
-Definition used for this standalone module:
-
-```text
-trained_path_delay =
-    host-controller TX reference point
-  + fixed host-controller TX path
-  + MAC/PHY fixed path
-  + physical link propagation
-  + fixed host-controller RX path
-  - responder turnaround compensation
-```
-
-Therefore the result should be documented and stored as `trained_path_delay` or `host_controller_to_host_controller_delay`, not as pure `physical_link_delay`.
-
-![LLTSM MAC-based architecture](images/LLTSM_MAC_based_architecture.png)
-
-![LLTSM MAC-based external interface](images/LLTSM_MAC_based_external_interface.png)
-
-## 1. Layered Internal Architecture
-
-The current training module is a resource-minimized, host-controller-controlled branch FSM. It is not a self-scheduling distributed training protocol. The host controller freezes normal traffic, selects exactly one adjacent link and one channel, then starts one local trained-path-delay measurement branch.
+## 总体结构
 
 ```mermaid
 flowchart TB
-    subgraph CONTROL["Communication Controller"]
-        TOP["Host Controller<br/>- freeze normal traffic<br/>- select adjacent link/channel<br/>- start training<br/>- store delay result"]
-        FSM["Training Branch FSM<br/>ttp_lltsm_branch_fsm.sv"]
-        TXFMT["LLTSM TX Payload Formatter<br/>lltsm_tx_payload_formatter.sv"]
-        RXP["LLTSM RX Payload Parser<br/>lltsm_rx_payload_parser.sv"]
+    subgraph CTRL["通信总线控制器"]
+        TOP["控制器 TOP / 主 FSM<br/>训练分支进入、退出、超时与结果存储"]
+        FSM["LLTSM_FSM<br/>训练调度、重复测量、RTT 统计"]
+        LINK["LLTSM_LINK<br/>固定帧生成、原样应答、应答校验、时间戳锁存"]
+        TOP <--> FSM
+        FSM <--> LINK
     end
 
-    subgraph MAC["MAC / Link Frame Processing"]
-        TX_MAC["TX frame processing<br/>address/type/length<br/>padding<br/>CRC/FCS generation<br/>PHY/channel select"]
-        RX_MAC["RX frame processing<br/>address/type filtering<br/>CRC/FCS checking<br/>timestamp capture"]
-    end
+    TXFIFO["TX 异宽 FIFO<br/>128-bit 写 / MAC 位宽读"]
+    MAC["MAC / 链路帧处理<br/>特殊字头、CRC/FCS、PHY 选择"]
+    PHY["选定 PHY 与相邻节点"]
+    RXFIFO["RX 异宽 FIFO<br/>MAC 位宽写 / 128-bit 读"]
 
-    subgraph PHY["Physical Transceiver Layer"]
-        PHY_TX["Selected PHY TX"]
-        PHY_RX["Selected PHY RX"]
-    end
-
-    ADJ["Adjacent Node"]
-
-    TOP -->|"control/config"| FSM
-    FSM -->|"status/result"| TOP
-    FSM -->|"train_tx_*"| TXFMT
-    TXFMT -->|"lltsm_tx_payload_* + metadata"| TX_MAC
-    TX_MAC --> PHY_TX
-    PHY_TX -->|"point-to-point segment"| ADJ
-    ADJ -->|"point-to-point segment"| PHY_RX
-    PHY_RX --> RX_MAC
-    RX_MAC -->|"lltsm_rx_payload_*, crc_ok, ref_time"| RXP
-    RXP -->|"train_rx_*"| FSM
+    LINK --> TXFIFO --> MAC --> PHY --> MAC --> RXFIFO --> LINK
 ```
 
-Key rule: local and adjacent state machines do not directly interact. They only exchange fixed-format training frames through the existing link transmit and receive paths.
+LLTSM 的架构层只有 `lltsm_fsm` 和 `lltsm_link`。异宽 FIFO 是控制器基础设施，
+MAC 是现有链路层，两者都不算 LLTSM 的额外收发适配模块。
 
-## 2. External Interface Diagram
+## LLTSM_FSM 职责
 
-```mermaid
-flowchart TB
-    TOP_CTRL["Host Controller"]
-    FSM["LLTSM Branch FSM"]
-    TXFMT["lltsm_tx_payload_formatter"]
-    RXP["lltsm_rx_payload_parser"]
+- 接受 TOP 的 `branch_enable/start/abort`；
+- 调度 LINK 发送本地训练请求或远端请求的原样应答；
+- 记录 TX FIFO 接受请求时的本地参考时间；
+- 接受 LINK 校验后的应答时间戳并计算 RTT；
+- 重复测量并输出平均 RTT 与补偿后的均值时延；
+- 通过 `branch_done` 请求 TOP 完成本次分支跳转。
 
-    subgraph MAC_IF["MAC / Link Frame Processing"]
-        TX_IF["TX: selected PHY/channel, frame header, padding, CRC/FCS"]
-        RX_IF["RX: address/type filter, CRC/FCS check, timestamp"]
-    end
+FSM 不解析帧、不操作 CRC、不直接选择 PHY，也不决定通信控制器主 FSM 的状态。
 
-    subgraph PHY_IF["Physical Transceiver Layer"]
-        PHY_TX_IF["Selected PHY TX"]
-        PHY_RX_IF["Selected PHY RX"]
-    end
+## LLTSM_LINK 职责
 
-    TOP_CTRL -->|"clk, rst_n, training_enable, abort, time_now<br/>local_start, node/link/channel/round config"| FSM
-    FSM -->|"local_start_ready, busy, done<br/>result_valid, result_ok<br/>result_rtt_average, result_mean_delay, branch_state"| TOP_CTRL
-    FSM -->|"train_tx_*"| TXFMT
-    TXFMT -->|"lltsm_tx_payload_* + routing metadata"| TX_IF
-    TX_IF --> PHY_TX_IF
-    PHY_RX_IF --> RX_IF
-    RX_IF -->|"lltsm_rx_payload_*, crc_ok, ref_time"| RXP
-    RXP -->|"train_rx_*"| FSM
-```
+- 根据稳定配置和序号构造固定 128-bit `TRAIN_FRAME`；
+- 一次写入 TX FIFO 的宽写口；
+- 保存本地已发送负载，供应答逐位比较；
+- 接收 MAC/FIFO 回传记录并检查训练帧类别、CRC 状态、固定负载字段；
+- 在请求端要求应答与本次发送负载 128-bit 完全一致；
+- 在应答端锁存请求并按 FSM 命令原样写回；
+- 通过校验后锁存 `rx_fifo_timestamp` 并上送 FSM。
 
-This diagram treats the LLTSM as one black-box module. The internal FSM/codec split is hidden; only the interfaces that must be wired to TOP and the local link layer are shown.
+LINK 不生成链路字头或 CRC；`tx_fifo_train_frame` 只是告诉 MAC 应选择哪一种固定
+链路帧类别。
 
-## 3. Detailed Interface Specification
+## 控制接口
 
-Unless otherwise stated, all FSM-side signals are synchronous to `clk`. The FSM uses an active-low asynchronous reset `rst_n`. The codec is purely combinational. The formatter/parser wrap the codec with a 16-bit payload stream boundary for MAC/link-frame integration.
-
-Default parameter values used by the current project:
-
-| Parameter | Default | Derived effect |
-|---|---:|---|
-| `NODE_COUNT` | 10 | `NODE_ID_WIDTH = 4` |
-| `CHANNEL_COUNT` | 2 | `CHANNEL_ID_WIDTH = 1` |
-| `LINK_COUNT` | 9 | `LINK_ID_WIDTH = 4` |
-| `TIME_WIDTH` | 32 | Timestamp and turnaround width in FSM |
-| `DELAY_WIDTH` | 32 | Result delay width |
-| `MEASURE_REPEATS` | 4 | Four request/response samples are averaged |
-| `RESPONSE_WAIT` | 32 | Response side waits 32 clocks after accepting a request |
-| `TRAIN_FRAME_WORDS` | 8 | Training payload length is 8 x 16-bit words |
-
-Integration constraint: the current codec uses a fixed 32-bit `tx_turnaround/rx_turnaround` field. Therefore the integrated frozen configuration should keep `TIME_WIDTH = DELAY_WIDTH = 32`.
-
-### 3.1 Control Layer Inputs: TOP to LLTSM
-
-| Signal | Direction | Width | Active timing | Semantic |
-|---|---|---:|---|---|
-| `clk` | input | 1 | continuous | Link training branch FSM clock. |
-| `rst_n` | input | 1 | asynchronous, active low | Resets FSM to `S_IDLE`, clears counters, result flags, and response latches. |
-| `training_enable` | input | 1 | sampled each `clk` | Enables training. If `0`, FSM returns to `S_IDLE` and clears active sample accumulation. |
-| `abort` | input | 1 | sampled each `clk` | Host-controlled cancel. If `1`, FSM returns to `S_IDLE`. |
-| `time_now` | input | `TIME_WIDTH`, default 32 | sampled on TX fire and accepted RX events | Local timestamp counter. Used for RTT and turnaround arithmetic. |
-| `local_start` | input | 1 | sampled in `S_IDLE` when `local_start_ready=1` | TOP requests this node to actively start one adjacent-link measurement. |
-| `local_node_id` | input | `NODE_ID_WIDTH`, default 4 | must stay stable while `busy=1` | This node ID. Used as TX source and RX destination match. |
-| `local_neighbor_node_id` | input | `NODE_ID_WIDTH`, default 4 | must stay stable while `busy=1` | Expected adjacent node ID. Used as TX destination and RX source match. |
-| `local_link_id` | input | `LINK_ID_WIDTH`, default 4 | must stay stable while `busy=1` | Selected adjacent link ID. |
-| `local_channel_id` | input | `CHANNEL_ID_WIDTH`, default 1 | must stay stable while `busy=1` | Selected redundant channel. `0/1` correspond to A/B by system convention. |
-| `local_training_round_id` | input | 8 | must stay stable while `busy=1` | Training round/session ID. Rejects stale frames from previous training attempts. |
-
-Control-layer start timing:
-
-- `local_start_ready = 1` means the FSM can accept `local_start`.
-- A start is accepted on a rising clock edge when `local_start && local_start_ready` is true.
-- After acceptance, the FSM enters `S_SEND_REQ`.
-- TOP must hold `local_node_id`, `local_neighbor_node_id`, `local_link_id`, `local_channel_id`, and `local_training_round_id` stable until `done=1` or the branch is aborted.
-- If an adjacent valid `DELAY_REQ` arrives while idle, the FSM gives the received request priority and deasserts `local_start_ready`; TOP may retry `local_start` later.
-
-### 3.2 Control Layer Outputs: LLTSM to TOP
-
-| Signal | Direction | Width | Active timing | Semantic |
-|---|---|---:|---|---|
-| `local_start_ready` | output | 1 | combinational status | FSM is idle, training is enabled, and no adjacent request is being accepted in the current cycle. |
-| `busy` | output | 1 | combinational status | `1` in `S_SEND_REQ`, `S_WAIT_RESP`, `S_RESPONSE_WAIT`, or `S_SEND_RESP`. |
-| `done` | output | 1 | one clock pulse | Asserted in `S_DONE`. Indicates one local measurement branch has finished. |
-| `result_valid` | output | 1 | one clock pulse, same cycle as `done` | Result outputs are valid in this cycle. |
-| `result_ok` | output | 1 | valid when `result_valid=1` | `1` when averaged RTT is greater than remote turnaround. |
-| `result_rtt_average` | output | `DELAY_WIDTH`, default 32 | valid when `result_valid=1` | Average RTT over `MEASURE_REPEATS` samples. |
-| `result_mean_delay` | output | `DELAY_WIDTH`, default 32 | valid when `result_valid=1` | One-way mean delay: `(average RTT - remote turnaround) >> 1`; saturated to zero if invalid. |
-| `branch_state` | output | 3 | continuous debug/status | Current FSM state encoding: `0=IDLE`, `1=SEND_REQ`, `2=WAIT_RESP`, `3=RESPONSE_WAIT`, `4=SEND_RESP`, `5=DONE`. |
-
-Result timing:
-
-- `done` and `result_valid` are asserted for exactly one `clk` cycle.
-- TOP should capture `result_ok`, `result_rtt_average`, and `result_mean_delay` when `result_valid=1`.
-- After `S_DONE`, FSM returns to `S_IDLE` on the next rising clock edge.
-
-### 3.3 TX Link Interface: LLTSM to Local Link TX Path
-
-| Signal | Direction | Width | Active timing | Semantic |
-|---|---|---:|---|---|
-| `train_tx_valid` | output | 1 | asserted in `S_SEND_REQ` or `S_SEND_RESP` | LLTSM requests transmission of one fixed training frame. |
-| `train_tx_ready` | input | 1 | sampled with `train_tx_valid` | Local TX path accepts the frame when `train_tx_valid && train_tx_ready`. |
-| `train_tx_frame_type` | output | 2 | valid when `train_tx_valid=1` | `1=DELAY_REQ`, `2=DELAY_RESP`. |
-| `train_tx_frame_words` | output | 16 | valid when `train_tx_valid=1` | Payload length in 16-bit words. Current fixed value: `TRAIN_FRAME_WORDS=8`. |
-| `train_tx_src_node_id` | output | `NODE_ID_WIDTH`, default 4 | valid when `train_tx_valid=1` | Source node ID. Normally `local_node_id`. |
-| `train_tx_dst_node_id` | output | `NODE_ID_WIDTH`, default 4 | valid when `train_tx_valid=1` | Destination node ID. For response, this is the original requester. |
-| `train_tx_link_id` | output | `LINK_ID_WIDTH`, default 4 | valid when `train_tx_valid=1` | Selected link ID. |
-| `train_tx_channel_id` | output | `CHANNEL_ID_WIDTH`, default 1 | valid when `train_tx_valid=1` | Selected A/B channel ID. |
-| `train_tx_training_round_id` | output | 8 | valid when `train_tx_valid=1` | Training round/session ID. |
-| `train_tx_sequence` | output | 8 | valid when `train_tx_valid=1` | Sample sequence number. Request and response use the same sequence. |
-| `train_tx_turnaround` | output | `TIME_WIDTH`, default 32 | valid for `DELAY_RESP`; zero for `DELAY_REQ` | Response-side elapsed time from request RX reference point to response TX reference point. |
-
-TX timing:
-
-- `train_tx_valid` remains asserted while the FSM is in a send state.
-- A TX frame is consumed on the rising clock edge where `train_tx_valid && train_tx_ready` is true.
-- For `DELAY_REQ`, the FSM latches `request_tx_ref_time <= time_now` on the accepted TX reference handshake and enters `S_WAIT_RESP`. In the frozen integration this reference may be the final LLTSM payload word acceptance point at the MAC/link-frame boundary, not a physical MAC/PHY SOF.
-- For `DELAY_RESP`, the FSM returns to `S_IDLE` after the accepted TX handshake.
-- The TX link path should treat all `train_tx_*` fields as stable while `train_tx_valid=1`.
-
-### 3.4 RX Link Interface: Local Link RX Path to LLTSM
-
-| Signal | Direction | Width | Active timing | Semantic |
-|---|---|---:|---|---|
-| `train_rx_valid` | input | 1 | sampled by FSM | RX decoded fields are valid. |
-| `train_rx_frame_complete` | input | 1 | sampled with `train_rx_valid` | Full fixed-length training frame has been received. |
-| `train_rx_crc_ok` | input | 1 | sampled with `train_rx_valid` | Received frame passed CRC. |
-| `train_rx_protocol_ok` | input | 1 | sampled with `train_rx_valid` | Codec reports correct training tag, legal type, and reserved fields. |
-| `train_rx_frame_type` | input | 2 | valid when `train_rx_valid=1` | `1=DELAY_REQ`, `2=DELAY_RESP`. |
-| `train_rx_frame_words` | input | 16 | valid when `train_rx_valid=1` | Received payload word count; must equal `TRAIN_FRAME_WORDS`. |
-| `train_rx_src_node_id` | input | `NODE_ID_WIDTH`, default 4 | valid when `train_rx_valid=1` | Received source node ID. |
-| `train_rx_dst_node_id` | input | `NODE_ID_WIDTH`, default 4 | valid when `train_rx_valid=1` | Received destination node ID. |
-| `train_rx_link_id` | input | `LINK_ID_WIDTH`, default 4 | valid when `train_rx_valid=1` | Received link ID. |
-| `train_rx_channel_id` | input | `CHANNEL_ID_WIDTH`, default 1 | valid when `train_rx_valid=1` | Received A/B channel ID. |
-| `train_rx_training_round_id` | input | 8 | valid when `train_rx_valid=1` | Received training round/session ID. |
-| `train_rx_sequence` | input | 8 | valid when `train_rx_valid=1` | Received sample sequence. Must match the expected sample on response reception. |
-| `train_rx_ref_time` | input | `TIME_WIDTH`, default 32 | valid when `train_rx_valid=1` | Selected RX reference timestamp at the documented MAC/link-frame parser output boundary. |
-| `train_rx_turnaround` | input | `TIME_WIDTH`, default 32 | valid for `DELAY_RESP` | Remote response-side turnaround field. |
-
-RX acceptance timing:
-
-The FSM accepts an inbound training frame only when all structural checks are true in the same cycle:
-
-```verilog
-train_rx_valid &&
-train_rx_frame_complete &&
-train_rx_crc_ok &&
-train_rx_protocol_ok &&
-(train_rx_frame_words == TRAIN_FRAME_WORDS)
-```
-
-Then the FSM applies semantic matching:
-
-- For `DELAY_REQ`: frame type must be `1`, source must equal `local_neighbor_node_id`, destination must equal `local_node_id`, and link/channel/round must match local configuration.
-- For `DELAY_RESP`: frame type must be `2`, source must equal `local_neighbor_node_id`, destination must equal `local_node_id`, link/channel/round must match, and `train_rx_sequence == sample_count`.
-- Accepted RX fields are consumed on the rising clock edge in the active state.
-- The RX path should keep all `train_rx_*` fields stable for the cycle where `train_rx_valid=1`.
-
-### 3.5 Codec Boundary Signals
-
-The codec is combinational. It may be placed between the FSM metadata interface and the existing 8-word fixed-frame payload interface.
-
-| Signal | Direction | Width | Timing | Semantic |
-|---|---|---:|---|---|
-| `tx_frame_type` | input | 2 | combinational | Training type from FSM. |
-| `tx_src_node_id` | input | `NODE_ID_WIDTH`, default 4 | combinational | Source node ID to pack. |
-| `tx_dst_node_id` | input | `NODE_ID_WIDTH`, default 4 | combinational | Destination node ID to pack. |
-| `tx_link_id` | input | `LINK_ID_WIDTH`, default 4 | combinational | Link ID to pack. |
-| `tx_channel_id` | input | `CHANNEL_ID_WIDTH`, default 1 | combinational | Channel ID to pack. |
-| `tx_training_round_id` | input | 8 | combinational | Training round to pack. |
-| `tx_sequence` | input | 8 | combinational | Sequence to pack. |
-| `tx_turnaround` | input | 32 | combinational | Turnaround field to pack for `DELAY_RESP`. |
-| `tx_payload_flat` | output | 128 | combinational | Packed 8 x 16-bit training payload for the external link-frame processing layer. |
-| `rx_payload_flat` | input | 128 | combinational | Received 8 x 16-bit training payload. |
-| `rx_protocol_ok` | output | 1 | combinational | `1` only when protocol tag, frame type, and reserved bits are legal. |
-| `rx_frame_type` | output | 2 | combinational | Decoded frame type. |
-| `rx_src_node_id` | output | `NODE_ID_WIDTH`, default 4 | combinational | Decoded source node ID. |
-| `rx_dst_node_id` | output | `NODE_ID_WIDTH`, default 4 | combinational | Decoded destination node ID. |
-| `rx_link_id` | output | `LINK_ID_WIDTH`, default 4 | combinational | Decoded link ID. |
-| `rx_channel_id` | output | `CHANNEL_ID_WIDTH`, default 1 | combinational | Decoded channel ID. |
-| `rx_training_round_id` | output | 8 | combinational | Decoded training round ID. |
-| `rx_sequence` | output | 8 | combinational | Decoded sequence. |
-| `rx_turnaround` | output | 32 | combinational | Decoded turnaround for `DELAY_RESP`; zero for request frames. |
-
-## 4. Top-Down External Interface Groups
-
-### 4.1 Control Layer Interface: Host Controller to Training FSM
-
-| Direction | Signal | Meaning |
-|---|---|---|
-| TOP -> LLTSM | `clk` | LLTSM working clock. |
-| TOP -> LLTSM | `rst_n` | Active-low reset. |
-| TOP -> LLTSM | `training_enable` | Enables link training. If low, LLTSM returns to idle. |
-| TOP -> LLTSM | `abort` | Cancels current branch training. |
-| TOP -> LLTSM | `time_now` | Local time counter used for TX/RX timestamp arithmetic. |
-| TOP -> LLTSM | `local_start` | Starts this node as the request side for the selected adjacent link. |
-| TOP -> LLTSM | `local_node_id` | This node ID. |
-| TOP -> LLTSM | `local_neighbor_node_id` | Adjacent node ID for the selected link. |
-| TOP -> LLTSM | `local_link_id` | Selected link index. |
-| TOP -> LLTSM | `local_channel_id` | Selected A/B channel. |
-| TOP -> LLTSM | `local_training_round_id` | Training round ID used to reject stale frames. |
-
-### 4.2 Control Layer Interface: Training FSM to Host Controller
-
-| Direction | Signal | Meaning |
-|---|---|---|
-| LLTSM -> TOP | `local_start_ready` | LLTSM can accept `local_start`. |
-| LLTSM -> TOP | `busy` | LLTSM is currently training or responding. |
-| LLTSM -> TOP | `done` | One-cycle completion pulse. |
-| LLTSM -> TOP | `result_valid` | One-cycle result-valid pulse. |
-| LLTSM -> TOP | `result_ok` | Result validity flag. |
-| LLTSM -> TOP | `result_rtt_average` | Average measured round-trip time. |
-| LLTSM -> TOP | `result_mean_delay` | Calculated one-way mean trained-path delay. |
-| LLTSM -> TOP | `branch_state` | Debug/status state encoding. |
-
-### 4.3 TX Link Interface: LLTSM to Formatter/MAC Boundary
-
-| Direction | Signal | Meaning |
-|---|---|---|
-| LLTSM -> TX Link | `train_tx_valid` | Requests transmission of one LLTSM training frame. |
-| TX Link -> LLTSM | `train_tx_ready` | TX path can accept the training frame. |
-| LLTSM -> TX Link | `train_tx_frame_type` | Training frame type: `1=DELAY_REQ`, `2=DELAY_RESP`. |
-| LLTSM -> TX Link | `train_tx_frame_words` | Fixed payload length in 16-bit words. |
-| LLTSM -> TX Link | `train_tx_src_node_id` | Source node ID. |
-| LLTSM -> TX Link | `train_tx_dst_node_id` | Destination node ID. |
-| LLTSM -> TX Link | `train_tx_link_id` | Selected link ID. |
-| LLTSM -> TX Link | `train_tx_channel_id` | Selected A/B channel ID. |
-| LLTSM -> TX Link | `train_tx_training_round_id` | Training round ID. |
-| LLTSM -> TX Link | `train_tx_sequence` | Measurement sample sequence. |
-| LLTSM -> TX Link | `train_tx_turnaround` | Response-side turnaround value. Valid for `DELAY_RESP`. |
-
-### 4.4 RX Link Interface: MAC/Parser Boundary to LLTSM
-
-| Direction | Signal | Meaning |
-|---|---|---|
-| RX Link -> LLTSM | `train_rx_valid` | Decoded RX fields are valid. |
-| RX Link -> LLTSM | `train_rx_frame_complete` | Full fixed-length training frame has been received. |
-| RX Link -> LLTSM | `train_rx_crc_ok` | Received frame passed CRC. |
-| RX Link -> LLTSM | `train_rx_protocol_ok` | Codec reports correct protocol tag, legal type, and reserved bits. |
-| RX Link -> LLTSM | `train_rx_frame_type` | Received frame type: `1=DELAY_REQ`, `2=DELAY_RESP`. |
-| RX Link -> LLTSM | `train_rx_frame_words` | Received payload length in 16-bit words. |
-| RX Link -> LLTSM | `train_rx_src_node_id` | Received source node ID. |
-| RX Link -> LLTSM | `train_rx_dst_node_id` | Received destination node ID. |
-| RX Link -> LLTSM | `train_rx_link_id` | Received link ID. |
-| RX Link -> LLTSM | `train_rx_channel_id` | Received A/B channel ID. |
-| RX Link -> LLTSM | `train_rx_training_round_id` | Received training round ID. |
-| RX Link -> LLTSM | `train_rx_sequence` | Received sample sequence. |
-| RX Link -> LLTSM | `train_rx_ref_time` | Selected RX reference timestamp at the documented MAC/link-frame parser output boundary. |
-| RX Link -> LLTSM | `train_rx_turnaround` | Remote turnaround value carried by `DELAY_RESP`. |
-
-## 5. FSM Input Interface Semantics
-
-| Signal | Source | Meaning |
-|---|---|---|
-| `clk` | system clock | Sequential clock for the branch FSM. |
-| `rst_n` | reset network | Active-low asynchronous reset. |
-| `training_enable` | Host Controller | Enables training operation. If deasserted, the FSM returns to `S_IDLE`. |
-| `abort` | Host Controller | Cancels the current branch and returns to `S_IDLE`. The host controller owns global watchdog/retry policy. |
-| `time_now` | controller/global time counter | Local timestamp counter used to capture TX/RX timing and turnaround delay. Width must equal `TIME_WIDTH`. |
-| `local_start` | Host Controller | Request to start this node as the request side for the selected adjacent link. Accepted only when `local_start_ready=1`. |
-| `local_node_id` | Host Controller | ID of this node. Used in outgoing source field and incoming destination matching. |
-| `local_neighbor_node_id` | Host Controller | Expected adjacent node ID. Used in outgoing destination field and incoming source matching. |
-| `local_link_id` | Host Controller | Selected adjacent physical/logical link index. |
-| `local_channel_id` | Host Controller | Selected redundant channel, normally A/B encoded as 0/1. |
-| `local_training_round_id` | Host Controller | Training round/session ID used to reject stale frames. |
-| `train_tx_ready` | local TX path | Handshake from the existing fixed-frame transmitter. A transmitted request/response is accepted when `train_tx_valid && train_tx_ready`. |
-| `train_rx_valid` | local RX path | Indicates decoded RX frame fields are valid for this cycle. |
-| `train_rx_frame_complete` | local RX path | Indicates the complete fixed-length frame has been received. |
-| `train_rx_crc_ok` | MAC/link-frame CRC checker | Indicates the received frame passed CRC/FCS. |
-| `train_rx_protocol_ok` | branch codec | Indicates the training-frame protocol tag, type field, and reserved bits are legal. This is part of the FSM acceptance gate. |
-| `train_rx_frame_type` | branch codec | Decoded training frame subtype: `1=DELAY_REQ`, `2=DELAY_RESP`. |
-| `train_rx_frame_words` | local RX path | Number of payload words in the received frame. Must equal `TRAIN_FRAME_WORDS`. |
-| `train_rx_src_node_id` | branch codec | Source node ID decoded from the received training frame. |
-| `train_rx_dst_node_id` | branch codec | Destination node ID decoded from the received training frame. |
-| `train_rx_link_id` | branch codec | Link ID decoded from the received training frame. |
-| `train_rx_channel_id` | branch codec | Channel ID decoded from the received training frame. |
-| `train_rx_training_round_id` | branch codec | Round/session ID decoded from the received training frame. |
-| `train_rx_sequence` | branch codec | Sample sequence number. Used to match the expected response sample. |
-| `train_rx_ref_time` | local RX timestamp unit | Selected RX reference timestamp. Used for RTT calculation and response turnaround calculation. |
-| `train_rx_turnaround` | branch codec | Remote response turnaround value carried by a `DELAY_RESP` frame. |
-
-## 6. FSM Output Interface Semantics
-
-| Signal | Destination | Meaning |
-|---|---|---|
-| `local_start_ready` | Host Controller | This branch can accept a `local_start`. It is deasserted if an adjacent `DELAY_REQ` is currently being serviced. |
-| `train_tx_valid` | LLTSM TX payload formatter | Requests transmission of one LLTSM training payload. |
-| `train_tx_frame_type` | branch codec/TX path | Outgoing training subtype: `1=DELAY_REQ`, `2=DELAY_RESP`. |
-| `train_tx_frame_words` | local TX path | Fixed payload word count. Current value is `TRAIN_FRAME_WORDS`, normally 8 words. |
-| `train_tx_src_node_id` | branch codec | Source node ID field for the outgoing frame. |
-| `train_tx_dst_node_id` | branch codec | Destination node ID field for the outgoing frame. For responses, this is the original requester. |
-| `train_tx_link_id` | branch codec | Link ID field for the outgoing frame. |
-| `train_tx_channel_id` | branch codec | A/B channel field for the outgoing frame. |
-| `train_tx_training_round_id` | branch codec | Round/session ID field for the outgoing frame. |
-| `train_tx_sequence` | branch codec | Sample sequence field. Request and matching response use the same sequence value. |
-| `train_tx_turnaround` | branch codec | Response-side turnaround value. Valid only for `DELAY_RESP`; zero for `DELAY_REQ`. |
-| `busy` | Host Controller | FSM is actively sending request, waiting for response, or responding to a request. |
-| `done` | Host Controller | One-cycle completion pulse in `S_DONE`. |
-| `result_valid` | Host Controller | One-cycle result-valid pulse in `S_DONE`. Same timing as `done`. |
-| `result_ok` | Host Controller | Result quality flag. Set if averaged RTT is larger than the received turnaround value. |
-| `result_rtt_average` | Host Controller | Average round-trip time over `MEASURE_REPEATS` samples. |
-| `result_mean_delay` | Host Controller | Calculated one-way mean delay: `(average RTT - remote turnaround) / 2`, saturated to zero if invalid. |
-| `branch_state` | debug/status register | Encoded current FSM state for debug or register readback. |
-
-## 7. Codec Interface Semantics
-
-### TX side
-
-| Signal | Meaning |
+| 方向 | 主要信号 |
 |---|---|
-| `tx_frame_type` | Training subtype from FSM: `1=DELAY_REQ`, `2=DELAY_RESP`. |
-| `tx_src_node_id` | Source node ID packed into the fixed training frame. |
-| `tx_dst_node_id` | Destination node ID packed into the fixed training frame. |
-| `tx_link_id` | Selected link ID packed into the frame. |
-| `tx_channel_id` | Selected A/B channel packed into the frame. |
-| `tx_training_round_id` | Round/session ID packed into the frame. |
-| `tx_sequence` | Sample sequence packed into the frame. |
-| `tx_turnaround` | Response turnaround value packed only for `DELAY_RESP`. |
-| `tx_payload_flat[127:0]` | Eight 16-bit training payload words for the external link-frame processing layer. |
+| TOP -> FSM | `branch_enable`, `branch_start`, `branch_abort`, `time_now` |
+| FSM -> TOP | `branch_start_ready`, `branch_busy`, `branch_done`, `result_*` |
+| FSM -> LINK | `link_clear`, `link_tx_request_valid`, `link_tx_echo_valid`, `link_expect_response`, `link_training_sequence` |
+| LINK -> FSM | 对应 `ready`、`rx_request_valid`、`rx_response_valid`、锁存时间戳 |
 
-### RX side
+## 配置接口
 
-| Signal | Meaning |
-|---|---|
-| `rx_payload_flat[127:0]` | Eight 16-bit payload words after MAC/link-frame receive checks. |
-| `rx_protocol_ok` | Protocol validity flag: correct tag, legal frame type, and reserved bits zero. |
-| `rx_frame_type` | Decoded subtype: `1=DELAY_REQ`, `2=DELAY_RESP`. |
-| `rx_src_node_id` | Decoded source node ID. |
-| `rx_dst_node_id` | Decoded destination node ID. |
-| `rx_link_id` | Decoded selected link ID. |
-| `rx_channel_id` | Decoded selected A/B channel. |
-| `rx_training_round_id` | Decoded round/session ID. |
-| `rx_sequence` | Decoded sample sequence number. |
-| `rx_turnaround` | Decoded response turnaround value. Zero for request frames. |
+TOP 直接向 LINK 提供并在训练分支期间保持稳定：
 
-## 8. Frame Acceptance Gate
+- `local_node_id[7:0]`
+- `neighbor_node_id[7:0]`
+- `selected_link_id[7:0]`
+- `selected_channel_id`
+- `training_round_id[7:0]`
 
-The FSM accepts an inbound training frame only if all of the following are true:
+序号由 FSM 的 `link_training_sequence[7:0]` 提供。
 
-- `train_rx_valid == 1`
-- `train_rx_frame_complete == 1`
-- `train_rx_crc_ok == 1`
-- `train_rx_protocol_ok == 1`
-- `train_rx_frame_words == TRAIN_FRAME_WORDS`
-- frame subtype and IDs match the expected local node, neighbor node, link, channel, and round
+## 状态摘要
 
-This prevents structurally valid but non-LLTSM frames from being acted on by the branch FSM.
+| 状态 | 行为 | 跳转 |
+|---|---|---|
+| `S_IDLE` | 等待 TOP 本地启动或远端有效请求 | 请求优先；进入发送请求或应答等待 |
+| `S_SEND_REQUEST` | 请求 LINK 写入固定训练帧 | FIFO 接受后记录 TX 时间并等待应答 |
+| `S_WAIT_RESPONSE` | 等待 LINK 的精确应答匹配 | 累加 RTT，重复或完成 |
+| `S_RESPONSE_WAIT` | 固定应答等待 | 计数结束后发送原样应答 |
+| `S_SEND_ECHO` | 命令 LINK 写回锁存负载 | FIFO 接受后返回空闲 |
+| `S_DONE` | 输出一周期结果与完成脉冲 | 下一周期返回空闲；TOP 同步跳出分支 |
 
-## 9. State Behavior Summary
+## 参考点
 
-| State | Work | Main outputs | Transition condition |
-|---|---|---|---|
-| `S_IDLE` | Wait for TOP start or adjacent request. Adjacent request has priority. | `local_start_ready=1` when enabled and no accepted adjacent request. | Adjacent `DELAY_REQ` -> `S_RESPONSE_WAIT` or `S_SEND_RESP`; accepted `local_start` -> `S_SEND_REQ`. |
-| `S_SEND_REQ` | Send one `DELAY_REQ` sample. | `train_tx_valid=1`, `train_tx_frame_type=DELAY_REQ`. | `train_tx_valid && train_tx_ready` -> latch selected TX reference time into `request_tx_ref_time`, go to `S_WAIT_RESP`. |
-| `S_WAIT_RESP` | Wait for matching `DELAY_RESP`. | No TX output. | Matching response -> accumulate RTT and either repeat `S_SEND_REQ` or finish at `S_DONE`. |
-| `S_RESPONSE_WAIT` | Wait a fixed number of cycles before sending response. | No TX output. | Counter expires -> go to `S_SEND_RESP`. |
-| `S_SEND_RESP` | Send one `DELAY_RESP` to the requester. | `train_tx_valid=1`, `train_tx_frame_type=DELAY_RESP`, response fields from received request, `train_tx_turnaround=time_now-response_rx_ref_time`. | `train_tx_valid && train_tx_ready` -> `S_IDLE`. |
-| `S_DONE` | Present one-cycle result. | `done=1`, `result_valid=1`. | Next clock -> `S_IDLE`. |
+- TX 参考点：完整 128-bit 训练负载被 TX FIFO 宽写口接受；
+- RX 参考点：MAC 提供并与 RX FIFO 完整记录对齐的 `rx_fifo_timestamp`。
+
+这两个参考点必须在训练和后续补偿中保持同一定义。若需要纯 PHY 传播时延，时间戳
+必须进一步下沉到 MAC/PHY 边界，当前控制器侧参考点不能被误称为纯线缆时延。

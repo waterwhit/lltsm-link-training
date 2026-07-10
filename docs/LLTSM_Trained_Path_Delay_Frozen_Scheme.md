@@ -1,101 +1,34 @@
-# Physical Link Delay Training FSM Frozen Scheme
+# LLTSM 训练路径时延冻结方案
 
-Date: 2026-07-08
+## 已冻结决策
 
-## 1. Frozen Decision
+当前实现测量控制器选定参考点之间的训练路径时延，不直接声称是纯物理传播时延。
 
-The current standalone training FSM measures trained path delay, not pure physical link propagation delay.
+- TX 参考点：`lltsm_link` 的 128-bit 训练帧成功写入 TX 异宽 FIFO；
+- RX 参考点：MAC 在接收路径捕获、并随 RX FIFO 记录传给 LINK 的时间戳；
+- 普通业务在训练期间冻结，使 FIFO 仲裁和排队延迟固定或可忽略；
+- MAC 负责链路字头、填充、CRC/FCS 和 PHY 选择。
 
-The selected timestamp reference points are allowed to be located at the host-controller-side training-frame boundary:
+## 原样应答约束
 
-- TX reference point: the moment the final LLTSM payload word is accepted by the MAC/link-frame layer.
-- RX reference point: the moment the MAC/link-frame parser presents a valid LLTSM payload, CRC/FCS status, and reference timestamp to the LLTSM RX parser.
+应答节点不修改 MAC 训练帧类别，也不修改 128-bit LLTSM 负载。这样请求端可以对
+回传帧进行逐位比较，但帧内不能携带应答节点实际 turnaround。
 
-This scheme is accepted for the current implementation because normal traffic is frozen during training, so FIFO queueing delay is deterministic or negligible. Later synchronization compensation must use the same reference-point definition.
-
-## 2. Delay Meaning
-
-The measured value should be named as:
-
-```text
-trained_path_delay
-```
-
-or:
+因此单向结果定义为：
 
 ```text
-host_controller_to_host_controller_delay
+trained_path_delay =
+    (average_RTT - RESPONSE_COMPENSATION_CYCLES) / 2
 ```
 
-It should not be described as pure:
+`RESPONSE_COMPENSATION_CYCLES` 必须由系统对固定应答路径进行标定。若保持默认 0，
+结果是训练 RTT 的一半，其中包含一半远端应答处理时间。该限制是“负载完全不变”
+与“动态补偿远端 turnaround”之间不可同时满足的协议取舍。
 
-```text
-physical_link_delay
-```
+## 一致性要求
 
-because the measured path may include:
-
-- host-controller TX payload formatting and MAC/link-frame acceptance delay;
-- frame header/address/type processing;
-- CRC/FCS processing;
-- MAC fixed processing delay;
-- PHY fixed processing delay;
-- physical link propagation delay;
-- host-controller MAC/link-frame RX parsing delay.
-
-## 3. Required Consistency Rule
-
-The scheme is valid only if the following rules are kept:
-
-1. The TX and RX timestamp reference points are fixed and documented.
-2. Training frames and later compensated business frames use the same controller path.
-3. Business traffic is frozen during training.
-4. The MAC/link-frame arbitration delay during training is deterministic or negligible.
-5. The same reference-point definition is used in later time synchronization compensation.
-
-## 4. RTL Naming Note
-
-The current RTL interface has been renamed to use reference-point terminology:
-
-```verilog
-train_rx_ref_time
-request_tx_ref_time
-response_rx_ref_time
-```
-
-In the frozen low-complexity integration, these names mean selected timestamp reference points. They do not necessarily mean physical MAC/PHY SOF timestamps.
-
-The external FSM ports use `train_tx_*` and `train_rx_*` names for semantic training fields. The reusable `lltsm_tx_payload_formatter` and `lltsm_rx_payload_parser` convert those fields to and from a fixed 8-word LLTSM payload stream. Link adaptation remains in the MAC/link-frame layer, not in LLTSM.
-
-The response node drives `train_tx_turnaround` from the actual response-frame TX payload acceptance reference point. Therefore MAC/link-frame backpressure during training is included in the responder turnaround and is subtracted by the request node instead of being misinterpreted as link delay.
-
-## 5. Integration Boundary
-
-The correct system path is:
-
-```text
-Host Communication Controller FSM/TOP
-  -> ttp_lltsm_branch_fsm
-  -> lltsm_tx_payload_formatter
-  -> MAC / Link Frame Processing
-  -> PHY
-  -> adjacent node
-  -> PHY
-  -> MAC / Link Frame Processing
-  -> lltsm_rx_payload_parser
-  -> ttp_lltsm_branch_fsm
-```
-
-The training branch does not directly drive the PHY. It only provides the selected training payload and PHY/channel metadata to the MAC/link-frame layer. PHY selection, link-frame formatting, padding, and CRC/FCS insertion/checking are MAC/link-frame responsibilities.
-
-## 6. Compensation Formula Interpretation
-
-The FSM still calculates:
-
-```text
-mean_delay = (average_RTT - responder_turnaround) / 2
-```
-
-Under this frozen scheme, `mean_delay` means the mean trained-path delay between the selected local and remote controller reference points.
-
-It is suitable for host-controller-level synchronization compensation as long as the same path definition is used consistently.
+1. TOP 在 LLTSM 分支期间保持配置稳定并冻结普通业务。
+2. TX/RX 时间戳参考点必须固定并写入系统设计说明。
+3. MAC 的帧类别、CRC 结果和时间戳必须与 RX FIFO 负载严格对齐。
+4. 后续同步补偿必须使用相同的数据路径和参考点定义。
+5. 若远端应答延迟不固定，则只能使用平均 RTT，不能把均值结果解释为准确单向传播时延。
