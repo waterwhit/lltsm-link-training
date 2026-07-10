@@ -106,23 +106,23 @@ def architecture(path):
     image = Image.new("RGB", (1800, 1200), COLORS["bg"])
     draw = ImageDraw.Draw(image)
     header(draw, "LLTSM 两模块集成架构",
-           "控制器 TOP 管理分支跳转；LLTSM_LINK 处理固定训练帧；链路字头与 CRC/FCS 由 MAC 完成。")
+           "LLTSM_LINK 根据负载字段识别训练帧；MAC 不识别训练帧，只负责 CRC/FCS 状态和链路传输。")
 
     layer(draw, (45, 130, 1755, 470), "通信总线控制器", COLORS["control"])
     box(draw, (100, 220, 520, 405), "控制器 TOP / 主 FSM",
         ["进入/退出训练分支", "冻结业务流量并保持配置", "超时、中止与结果存储"])
     box(draw, (690, 220, 1110, 405), "LLTSM_FSM",
-        ["分支状态调度", "重复测量与 RTT 均值", "branch_done 上报 TOP"], COLORS["blue"])
+        ["分支状态调度", "重复测量与 RTT 均值", "train_done 上报 TOP"], COLORS["blue"])
     box(draw, (1280, 220, 1700, 405), "LLTSM_LINK",
-        ["生成固定 128-bit TRAIN_FRAME", "原样应答与精确比较", "校验后锁存接收时间戳"], COLORS["green"])
+        ["生成固定 128-bit TRAIN_FRAME", "识别协议标识/保留位/固定图样", "结合 crc_ok 校验并原样应答"], COLORS["green"])
     arrow(draw, (520, 310), (690, 310), COLORS["blue"], "分支控制 / 状态结果", (605, 275), True)
     arrow(draw, (1110, 310), (1280, 310), COLORS["green"], "发送命令 / 接收事件", (1195, 275), True)
 
     layer(draw, (45, 520, 1755, 805), "FIFO 与 MAC 边界", COLORS["link"])
     box(draw, (100, 610, 500, 750), "TX 异宽 FIFO",
         ["LLTSM：128-bit 宽写口", "MAC：本地位宽读口", "完整负载一次入队"])
-    box(draw, (700, 590, 1100, 770), "MAC / 链路帧处理",
-        ["添加/识别训练特殊字头", "地址、长度、填充", "CRC/FCS 与 PHY 选择"], COLORS["orange"])
+    box(draw, (700, 590, 1100, 770), "MAC / 链路传输",
+        ["不解析 LLTSM 负载字段", "CRC/FCS 产生与校验", "输出 crc_ok、时间戳并选择 PHY"], COLORS["orange"])
     box(draw, (1300, 610, 1700, 750), "RX 异宽 FIFO",
         ["MAC：本地位宽写口", "LLTSM：128-bit 宽读口", "CRC 状态和时间戳对齐"])
     arrow(draw, (1490, 405), (300, 610), COLORS["green"], "128-bit 宽写", (870, 490))
@@ -134,8 +134,8 @@ def architecture(path):
     box(draw, (650, 900, 1150, 995), "选定 PHY 与相邻节点", ["训练帧沿现有业务链路收发"])
     arrow(draw, (900, 770), (900, 900), COLORS["orange"], "完整链路帧", (1000, 835), True)
 
-    note = ("固定应答：训练帧类别不变，128-bit 负载逐位不变。负载中不携带 turnaround；"
-            "若需要单向时延，必须标定固定应答补偿参数。")
+    note = ("训练帧识别：字 0 为协议标识、保留位为 0、字 4～7 为固定图样；"
+            "MAC 仅提供 CRC/FCS 结果，应答负载逐位不变。")
     draw.text((80, 1080), note, font=TEXT, fill=COLORS["red"])
     image.save(path)
 
@@ -147,20 +147,20 @@ def external_interface(path):
            "异宽 FIFO 是控制器基础设施，不是额外 LLTSM 收发适配模块。")
 
     box(draw, (80, 160, 520, 390), "通信控制器 TOP",
-        ["branch_enable / start / abort", "time_now 与稳定配置", "接收 branch_done / result_*"] , fill=COLORS["control"])
+        ["train_enable / start / abort", "time_now 与稳定配置", "接收 train_done / result_*"] , fill=COLORS["control"])
     box(draw, (680, 140, 1120, 410), "LLTSM_FSM",
-        ["request / echo valid-ready", "expect_response", "training_sequence", "接收有效事件与时间戳"], COLORS["blue"])
+        ["req / rsp valid-ready", "expect_rsp", "training_sequence", "接收有效事件与时间戳"], COLORS["blue"])
     box(draw, (1280, 160, 1720, 390), "LLTSM_LINK",
         ["固定帧生成与锁存", "结构/目标/CRC 状态检查", "128-bit 应答精确比较"], COLORS["green"], COLORS["link"])
     arrow(draw, (520, 275), (680, 275), COLORS["blue"], "分支控制 / 结果", (600, 240), True)
     arrow(draw, (1120, 275), (1280, 275), COLORS["green"], "命令 / 校验事件", (1200, 240), True)
 
     box(draw, (100, 560, 560, 790), "TX FIFO 宽写侧",
-        ["tx_fifo_full / wr_en", "tx_fifo_wr_data[127:0]", "train_frame / link_id / channel_id"])
-    box(draw, (670, 540, 1130, 810), "MAC / 链路帧处理",
-        ["窄口读取/写入 FIFO", "特殊字头、地址、长度与填充", "CRC/FCS、PHY 选择、RX 时间戳"], COLORS["orange"], COLORS["mac"])
+        ["tx_fifo_full / wr_en", "tx_fifo_wr_data[127:0]", "link_id / channel_id"])
+    box(draw, (670, 540, 1130, 810), "MAC / 链路传输",
+        ["窄口读取/写入 FIFO", "不识别 LLTSM 训练帧字段", "CRC/FCS、PHY 选择、RX 时间戳"], COLORS["orange"], COLORS["mac"])
     box(draw, (1240, 560, 1700, 790), "RX FIFO 宽读侧（FWFT）",
-        ["empty / rd_en", "rx_fifo_rd_data[127:0]", "train_frame / crc_ok / timestamp"])
+        ["empty / rd_en", "rx_fifo_rd_data[127:0]", "crc_ok / timestamp"])
     arrow(draw, (1500, 390), (330, 560), COLORS["green"], "完整负载宽写", (900, 475))
     arrow(draw, (560, 675), (670, 675), COLORS["green"], "MAC 窄读")
     arrow(draw, (1130, 675), (1240, 675), COLORS["orange"], "MAC 窄写")
@@ -169,7 +169,7 @@ def external_interface(path):
     box(draw, (600, 900, 1200, 1080), "固定 128-bit TRAIN_FRAME",
         ["字0：固定协议标识    字1：源/目的节点", "字2：轮次/序号    字3：通道/链路", "字4..7：固定训练图样"])
     draw.text((240, 1135),
-              "MAC 链路字头和 CRC/FCS 不属于 TRAIN_FRAME；应答复用相同帧类别，并逐位原样回送全部负载。",
+              "训练帧字段识别位于 LLTSM_LINK；MAC 仅生成/校验 CRC/FCS，应答逐位原样回送全部负载。",
               font=TEXT, fill=COLORS["red"])
     image.save(path)
 

@@ -3,15 +3,16 @@
 // LLTSM link engine.
 //
 // The TX interface is the wide write side of a width-converting FIFO. The MAC
-// reads the same FIFO through its native narrow data width, adds its own link
-// header, padding and CRC/FCS, and selects the requested PHY/channel.
+// reads the same FIFO through its native narrow data width and generates the
+// link CRC/FCS. The MAC does not inspect LLTSM payload fields.
 //
 // The RX interface is the wide read side of the corresponding receive path.
-// MAC-side frame classification, CRC status and timestamp are aligned with the
-// 128-bit payload record. This module never creates or checks a link CRC.
+// MAC-side CRC status and timestamp are aligned with the 128-bit payload
+// record. This module recognizes training frames from their payload fields;
+// it never creates or calculates a link CRC.
 //
-// A response is an exact echo: the MAC training-frame class is unchanged and
-// every bit of the 128-bit TRAIN_FRAME payload is returned unchanged.
+// A response is an exact echo: every bit of the 128-bit TRAIN_FRAME payload is
+// returned unchanged.
 
 module lltsm_link #(
     parameter integer TIME_WIDTH = 32,
@@ -31,23 +32,22 @@ module lltsm_link #(
     input  logic [7:0]            training_sequence,
 
     // LLTSM FSM command interface.
-    input  logic                  tx_request_valid,
-    output logic                  tx_request_ready,
-    input  logic                  tx_echo_valid,
-    output logic                  tx_echo_ready,
-    input  logic                  expect_response,
+    input  logic                  tx_req_valid,
+    output logic                  tx_req_ready,
+    input  logic                  tx_rsp_valid,
+    output logic                  tx_rsp_ready,
+    input  logic                  expect_rsp,
 
-    output logic                  rx_request_valid,
-    output logic [TIME_WIDTH-1:0] rx_request_timestamp,
-    output logic                  rx_response_valid,
-    output logic [TIME_WIDTH-1:0] rx_response_timestamp,
+    output logic                  rx_req_valid,
+    output logic [TIME_WIDTH-1:0] rx_req_timestamp,
+    output logic                  rx_rsp_valid,
+    output logic [TIME_WIDTH-1:0] rx_rsp_timestamp,
     output logic                  rx_rejected,
 
     // Wide write side of TX width-converting FIFO: 128-bit LLTSM -> MAC width.
     input  logic                  tx_fifo_full,
     output logic                  tx_fifo_wr_en,
     output logic [127:0]          tx_fifo_wr_data,
-    output logic                  tx_fifo_train_frame,
     output logic [7:0]            tx_fifo_link_id,
     output logic                  tx_fifo_channel_id,
 
@@ -57,26 +57,27 @@ module lltsm_link #(
     input  logic                  rx_fifo_empty,
     output logic                  rx_fifo_rd_en,
     input  logic [127:0]          rx_fifo_rd_data,
-    input  logic                  rx_fifo_train_frame,
     input  logic                  rx_fifo_crc_ok,
     input  logic [TIME_WIDTH-1:0] rx_fifo_timestamp
 );
 
-    logic [127:0] request_frame;
-    logic [127:0] expected_response_frame;
-    logic [127:0] pending_request_frame;
-    logic         expected_response_valid;
-    logic         request_pending;
+    logic [127:0] req_frame;
+    logic [127:0] expected_rsp_frame;
+    logic [127:0] pending_req_frame;
+    logic         expected_rsp_valid;
+    logic         req_pending;
 
-    wire request_write = tx_request_valid && tx_request_ready;
-    wire echo_write    = tx_echo_valid && tx_echo_ready;
+    wire req_write = tx_req_valid && tx_req_ready;
+    wire rsp_write = tx_rsp_valid && tx_rsp_ready;
 
     wire rx_record_fire = !rx_fifo_empty && rx_fifo_rd_en;
-    wire rx_common_ok = rx_fifo_train_frame &&
-                        rx_fifo_crc_ok &&
-                        (rx_fifo_rd_data[15:0] == TRAIN_PAYLOAD_MAGIC) &&
-                        (rx_fifo_rd_data[63:57] == 7'd0) &&
-                        (rx_fifo_rd_data[127:64] == TRAIN_PAYLOAD_PATTERN);
+    // LLTSM_LINK, rather than the MAC, recognizes the fixed training payload.
+    wire rx_checker =
+        (rx_fifo_rd_data[15:0] == TRAIN_PAYLOAD_MAGIC) &&
+        (rx_fifo_rd_data[63:57] == 7'd0) &&
+        (rx_fifo_rd_data[127:64] == TRAIN_PAYLOAD_PATTERN);
+
+    wire rx_common_ok = rx_fifo_crc_ok && rx_checker;
 
     wire rx_targets_local = (rx_fifo_rd_data[31:24] == neighbor_node_id) &&
                             (rx_fifo_rd_data[23:16] == local_node_id) &&
@@ -84,9 +85,9 @@ module lltsm_link #(
                             (rx_fifo_rd_data[56] == selected_channel_id) &&
                             (rx_fifo_rd_data[47:40] == training_round_id);
 
-    wire rx_expected_response = rx_common_ok &&
-                                expected_response_valid &&
-                                (rx_fifo_rd_data == expected_response_frame);
+    wire rx_expected_rsp = rx_common_ok &&
+                           expected_rsp_valid &&
+                           (rx_fifo_rd_data == expected_rsp_frame);
 
     initial begin
         if (TIME_WIDTH < 1)
@@ -94,74 +95,75 @@ module lltsm_link #(
     end
 
     always_comb begin
-        request_frame = 128'd0;
-        request_frame[15:0]   = TRAIN_PAYLOAD_MAGIC;
-        request_frame[23:16]  = neighbor_node_id;
-        request_frame[31:24]  = local_node_id;
-        request_frame[39:32]  = training_sequence;
-        request_frame[47:40]  = training_round_id;
-        request_frame[55:48]  = selected_link_id;
-        request_frame[56]     = selected_channel_id;
-        request_frame[127:64] = TRAIN_PAYLOAD_PATTERN;
+        req_frame = 128'd0;
+        req_frame[15:0]   = TRAIN_PAYLOAD_MAGIC;
+        req_frame[23:16]  = neighbor_node_id;
+        req_frame[31:24]  = local_node_id;
+        req_frame[39:32]  = training_sequence;
+        req_frame[47:40]  = training_round_id;
+        req_frame[55:48]  = selected_link_id;
+        req_frame[56]     = selected_channel_id;
+        req_frame[127:64] = TRAIN_PAYLOAD_PATTERN;
 
-        tx_request_ready = !clear && !tx_fifo_full;
-        tx_echo_ready    = !clear && request_pending && !tx_fifo_full;
+        tx_rsp_ready = !clear && req_pending && !tx_fifo_full;
+        // Response has priority if both commands are asserted unexpectedly.
+        tx_req_ready = !clear && !tx_fifo_full &&
+                       !(tx_rsp_valid && req_pending);
 
-        tx_fifo_wr_en       = request_write || echo_write;
-        tx_fifo_wr_data     = echo_write ? pending_request_frame : request_frame;
-        tx_fifo_train_frame = tx_fifo_wr_en;
+        tx_fifo_wr_en       = req_write || rsp_write;
+        tx_fifo_wr_data     = rsp_write ? pending_req_frame : req_frame;
         tx_fifo_link_id     = tx_fifo_wr_data[55:48];
         tx_fifo_channel_id  = tx_fifo_wr_data[56];
 
         // Stop consuming new requests while one exact echo is pending.
         rx_fifo_rd_en = !clear && !rx_fifo_empty &&
-                        (expect_response || !request_pending);
+                        (expect_rsp || !req_pending);
     end
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            expected_response_frame <= 128'd0;
-            pending_request_frame    <= 128'd0;
-            expected_response_valid <= 1'b0;
-            request_pending          <= 1'b0;
-            rx_request_valid         <= 1'b0;
-            rx_request_timestamp     <= '0;
-            rx_response_valid        <= 1'b0;
-            rx_response_timestamp    <= '0;
+            expected_rsp_frame <= 128'd0;
+            pending_req_frame  <= 128'd0;
+            expected_rsp_valid <= 1'b0;
+            req_pending        <= 1'b0;
+            rx_req_valid       <= 1'b0;
+            rx_req_timestamp   <= '0;
+            rx_rsp_valid       <= 1'b0;
+            rx_rsp_timestamp   <= '0;
             rx_rejected              <= 1'b0;
         end else if (clear) begin
-            expected_response_valid <= 1'b0;
-            request_pending          <= 1'b0;
-            rx_request_valid         <= 1'b0;
-            rx_response_valid        <= 1'b0;
-            rx_rejected              <= 1'b0;
+            expected_rsp_valid <= 1'b0;
+            req_pending        <= 1'b0;
+            rx_req_valid       <= 1'b0;
+            rx_rsp_valid       <= 1'b0;
+            rx_rejected        <= 1'b0;
         end else begin
-            rx_request_valid  <= 1'b0;
-            rx_response_valid <= 1'b0;
-            rx_rejected       <= 1'b0;
+            rx_req_valid <= 1'b0;
+            rx_rsp_valid <= 1'b0;
+            rx_rejected  <= 1'b0;
 
-            if (request_write) begin
-                expected_response_frame <= request_frame;
-                expected_response_valid <= 1'b1;
+            if (req_write) begin
+                expected_rsp_frame <= req_frame;
+                expected_rsp_valid <= 1'b1;
             end
 
-            if (echo_write)
-                request_pending <= 1'b0;
+            if (rsp_write)
+                req_pending <= 1'b0;
 
             if (rx_record_fire) begin
-                if (expect_response) begin
-                    if (rx_expected_response) begin
-                        rx_response_valid        <= 1'b1;
-                        rx_response_timestamp    <= rx_fifo_timestamp;
-                        expected_response_valid <= 1'b0;
+                if (expect_rsp) begin
+                    if (rx_expected_rsp) begin
+                        rx_rsp_valid       <= 1'b1;
+                        rx_rsp_timestamp   <= rx_fifo_timestamp;
+                        expected_rsp_valid <= 1'b0;
                     end else begin
                         rx_rejected <= 1'b1;
                     end
                 end else if (rx_common_ok && rx_targets_local) begin
-                    pending_request_frame <= rx_fifo_rd_data;
-                    request_pending       <= 1'b1;
-                    rx_request_valid      <= 1'b1;
-                    rx_request_timestamp  <= rx_fifo_timestamp;
+                    pending_req_frame <= rx_fifo_rd_data;
+                    req_pending       <= 1'b1;
+                    rx_req_valid      <= 1'b1;
+                    rx_req_timestamp  <= rx_fifo_timestamp;
                 end else begin
                     rx_rejected <= 1'b1;
                 end

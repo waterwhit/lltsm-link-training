@@ -31,53 +31,50 @@ module tb_lltsm_system;
     logic echo_valid_a, echo_ready_a, expect_response_a;
     logic [7:0] sequence_a;
     logic rx_request_valid_a, rx_response_valid_a, rx_rejected_a;
-    logic [31:0] rx_request_timestamp_a, rx_response_timestamp_a;
+    logic [31:0] rx_response_timestamp_a;
 
     logic clear_b, request_valid_b, request_ready_b;
     logic echo_valid_b, echo_ready_b, expect_response_b;
     logic [7:0] sequence_b;
     logic rx_request_valid_b, rx_response_valid_b, rx_rejected_b;
-    logic [31:0] rx_request_timestamp_b, rx_response_timestamp_b;
+    logic [31:0] rx_response_timestamp_b;
 
     logic tx_wr_a, tx_wr_b;
     logic [127:0] tx_data_a, tx_data_b;
-    logic tx_train_a, tx_train_b;
     logic [7:0] tx_link_a, tx_link_b;
     logic tx_channel_a, tx_channel_b;
 
     logic rx_empty_a, rx_empty_b;
     logic rx_rd_a, rx_rd_b;
     logic [127:0] rx_data_a, rx_data_b;
-    logic rx_train_a, rx_train_b;
     logic rx_crc_a, rx_crc_b;
     logic [31:0] rx_timestamp_a, rx_timestamp_b;
 
     lltsm_fsm #(
         .MEASURE_REPEATS(2),
-        .RESPONSE_WAIT(3),
-        .RESPONSE_COMPENSATION_CYCLES(0)
+        .RSP_WAIT(3),
+        .RSP_COMPENSATION_CYCLES(0)
     ) fsm_a (
         .clk,
         .rst_n,
-        .branch_enable(enable_a),
-        .branch_start(start_a),
-        .branch_abort(abort_a),
-        .branch_start_ready(start_ready_a),
-        .branch_busy(busy_a),
-        .branch_done(done_a),
-        .branch_state(state_a),
+        .train_enable(enable_a),
+        .train_start(start_a),
+        .train_abort(abort_a),
+        .train_start_ready(start_ready_a),
+        .train_busy(busy_a),
+        .train_done(done_a),
+        .train_state(state_a),
         .time_now,
         .link_clear(clear_a),
-        .link_tx_request_valid(request_valid_a),
-        .link_tx_request_ready(request_ready_a),
-        .link_tx_echo_valid(echo_valid_a),
-        .link_tx_echo_ready(echo_ready_a),
-        .link_expect_response(expect_response_a),
+        .link_tx_req_valid(request_valid_a),
+        .link_tx_req_ready(request_ready_a),
+        .link_tx_rsp_valid(echo_valid_a),
+        .link_tx_rsp_ready(echo_ready_a),
+        .link_expect_rsp(expect_response_a),
         .link_training_sequence(sequence_a),
-        .link_rx_request_valid(rx_request_valid_a),
-        .link_rx_request_timestamp(rx_request_timestamp_a),
-        .link_rx_response_valid(rx_response_valid_a),
-        .link_rx_response_timestamp(rx_response_timestamp_a),
+        .link_rx_req_valid(rx_request_valid_a),
+        .link_rx_rsp_valid(rx_response_valid_a),
+        .link_rx_rsp_timestamp(rx_response_timestamp_a),
         .result_valid(result_valid_a),
         .result_ok(result_ok_a),
         .result_rtt_average(result_rtt_a),
@@ -94,56 +91,53 @@ module tb_lltsm_system;
         .selected_channel_id(1'b1),
         .training_round_id(8'h34),
         .training_sequence(sequence_a),
-        .tx_request_valid(request_valid_a),
-        .tx_request_ready(request_ready_a),
-        .tx_echo_valid(echo_valid_a),
-        .tx_echo_ready(echo_ready_a),
-        .expect_response(expect_response_a),
-        .rx_request_valid(rx_request_valid_a),
-        .rx_request_timestamp(rx_request_timestamp_a),
-        .rx_response_valid(rx_response_valid_a),
-        .rx_response_timestamp(rx_response_timestamp_a),
+        .tx_req_valid(request_valid_a),
+        .tx_req_ready(request_ready_a),
+        .tx_rsp_valid(echo_valid_a),
+        .tx_rsp_ready(echo_ready_a),
+        .expect_rsp(expect_response_a),
+        .rx_req_valid(rx_request_valid_a),
+        .rx_req_timestamp(),
+        .rx_rsp_valid(rx_response_valid_a),
+        .rx_rsp_timestamp(rx_response_timestamp_a),
         .rx_rejected(rx_rejected_a),
         .tx_fifo_full(1'b0),
         .tx_fifo_wr_en(tx_wr_a),
         .tx_fifo_wr_data(tx_data_a),
-        .tx_fifo_train_frame(tx_train_a),
         .tx_fifo_link_id(tx_link_a),
         .tx_fifo_channel_id(tx_channel_a),
         .rx_fifo_empty(rx_empty_a),
         .rx_fifo_rd_en(rx_rd_a),
         .rx_fifo_rd_data(rx_data_a),
-        .rx_fifo_train_frame(rx_train_a),
         .rx_fifo_crc_ok(rx_crc_a),
         .rx_fifo_timestamp(rx_timestamp_a)
     );
 
     lltsm_fsm #(
         .MEASURE_REPEATS(2),
-        .RESPONSE_WAIT(3),
-        .RESPONSE_COMPENSATION_CYCLES(0)
+        .RSP_WAIT(3),
+        .RSP_COMPENSATION_CYCLES(0)
     ) fsm_b (
         .clk,
         .rst_n,
-        .branch_enable(enable_b),
-        .branch_start(start_b),
-        .branch_abort(abort_b),
-        .branch_start_ready(start_ready_b),
-        .branch_busy(busy_b),
-        .branch_done(done_b),
-        .branch_state(state_b),
+        .train_enable(enable_b),
+        .train_start(start_b),
+        .train_abort(abort_b),
+        .train_start_ready(start_ready_b),
+        .train_busy(busy_b),
+        .train_done(done_b),
+        .train_state(state_b),
         .time_now,
         .link_clear(clear_b),
-        .link_tx_request_valid(request_valid_b),
-        .link_tx_request_ready(request_ready_b),
-        .link_tx_echo_valid(echo_valid_b),
-        .link_tx_echo_ready(echo_ready_b),
-        .link_expect_response(expect_response_b),
+        .link_tx_req_valid(request_valid_b),
+        .link_tx_req_ready(request_ready_b),
+        .link_tx_rsp_valid(echo_valid_b),
+        .link_tx_rsp_ready(echo_ready_b),
+        .link_expect_rsp(expect_response_b),
         .link_training_sequence(sequence_b),
-        .link_rx_request_valid(rx_request_valid_b),
-        .link_rx_request_timestamp(rx_request_timestamp_b),
-        .link_rx_response_valid(rx_response_valid_b),
-        .link_rx_response_timestamp(rx_response_timestamp_b),
+        .link_rx_req_valid(rx_request_valid_b),
+        .link_rx_rsp_valid(rx_response_valid_b),
+        .link_rx_rsp_timestamp(rx_response_timestamp_b),
         .result_valid(result_valid_b),
         .result_ok(result_ok_b),
         .result_rtt_average(result_rtt_b),
@@ -160,26 +154,24 @@ module tb_lltsm_system;
         .selected_channel_id(1'b1),
         .training_round_id(8'h34),
         .training_sequence(sequence_b),
-        .tx_request_valid(request_valid_b),
-        .tx_request_ready(request_ready_b),
-        .tx_echo_valid(echo_valid_b),
-        .tx_echo_ready(echo_ready_b),
-        .expect_response(expect_response_b),
-        .rx_request_valid(rx_request_valid_b),
-        .rx_request_timestamp(rx_request_timestamp_b),
-        .rx_response_valid(rx_response_valid_b),
-        .rx_response_timestamp(rx_response_timestamp_b),
+        .tx_req_valid(request_valid_b),
+        .tx_req_ready(request_ready_b),
+        .tx_rsp_valid(echo_valid_b),
+        .tx_rsp_ready(echo_ready_b),
+        .expect_rsp(expect_response_b),
+        .rx_req_valid(rx_request_valid_b),
+        .rx_req_timestamp(),
+        .rx_rsp_valid(rx_response_valid_b),
+        .rx_rsp_timestamp(rx_response_timestamp_b),
         .rx_rejected(rx_rejected_b),
         .tx_fifo_full(1'b0),
         .tx_fifo_wr_en(tx_wr_b),
         .tx_fifo_wr_data(tx_data_b),
-        .tx_fifo_train_frame(tx_train_b),
         .tx_fifo_link_id(tx_link_b),
         .tx_fifo_channel_id(tx_channel_b),
         .rx_fifo_empty(rx_empty_b),
         .rx_fifo_rd_en(rx_rd_b),
         .rx_fifo_rd_data(rx_data_b),
-        .rx_fifo_train_frame(rx_train_b),
         .rx_fifo_crc_ok(rx_crc_b),
         .rx_fifo_timestamp(rx_timestamp_b)
     );
@@ -189,7 +181,8 @@ module tb_lltsm_system;
     logic [127:0] fwd_data [0:FWD_DELAY-1];
     logic [127:0] rev_data [0:REV_DELAY-1];
     logic [127:0] last_request_frame;
-    logic inject_bad_to_b;
+    logic inject_bad_crc_to_b;
+    logic inject_non_train_to_b;
     integer i;
 
     always_ff @(posedge clk or negedge rst_n) begin
@@ -200,8 +193,6 @@ module tb_lltsm_system;
             rx_empty_b    <= 1'b1;
             rx_data_a     <= 128'd0;
             rx_data_b     <= 128'd0;
-            rx_train_a    <= 1'b0;
-            rx_train_b    <= 1'b0;
             rx_crc_a      <= 1'b0;
             rx_crc_b      <= 1'b0;
             rx_timestamp_a <= 32'd0;
@@ -227,14 +218,14 @@ module tb_lltsm_system;
             end
 
             if (tx_wr_a) begin
-                if (!tx_train_a || (tx_link_a != 8'h05) || !tx_channel_a)
+                if ((tx_link_a != 8'h05) || !tx_channel_a)
                     $fatal(1, "node A TX FIFO metadata mismatch");
                 last_request_frame <= tx_data_a;
             end
 
             if (tx_wr_b) begin
-                if (!tx_train_b || (tx_data_b != last_request_frame))
-                    $fatal(1, "response payload or training-frame class changed");
+                if (tx_data_b != last_request_frame)
+                    $fatal(1, "response payload changed");
             end
 
             if (!rx_empty_a && rx_rd_a)
@@ -245,7 +236,6 @@ module tb_lltsm_system;
             if (fwd_valid[FWD_DELAY-1]) begin
                 rx_empty_b     <= 1'b0;
                 rx_data_b      <= fwd_data[FWD_DELAY-1];
-                rx_train_b     <= 1'b1;
                 rx_crc_b       <= 1'b1;
                 rx_timestamp_b <= time_now;
             end
@@ -253,16 +243,21 @@ module tb_lltsm_system;
             if (rev_valid[REV_DELAY-1]) begin
                 rx_empty_a     <= 1'b0;
                 rx_data_a      <= rev_data[REV_DELAY-1];
-                rx_train_a     <= 1'b1;
                 rx_crc_a       <= 1'b1;
                 rx_timestamp_a <= time_now;
             end
 
-            if (inject_bad_to_b) begin
+            if (inject_bad_crc_to_b) begin
                 rx_empty_b     <= 1'b0;
                 rx_data_b      <= 128'h1;
-                rx_train_b     <= 1'b1;
                 rx_crc_b       <= 1'b0;
+                rx_timestamp_b <= time_now;
+            end
+
+            if (inject_non_train_to_b) begin
+                rx_empty_b     <= 1'b0;
+                rx_data_b      <= 128'h1;
+                rx_crc_b       <= 1'b1;
                 rx_timestamp_b <= time_now;
             end
         end
@@ -285,7 +280,8 @@ module tb_lltsm_system;
         start_b = 1'b0;
         abort_a = 1'b0;
         abort_b = 1'b0;
-        inject_bad_to_b = 1'b0;
+        inject_bad_crc_to_b = 1'b0;
+        inject_non_train_to_b = 1'b0;
 
         repeat (5) @(posedge clk);
         rst_n = 1'b1;
@@ -293,14 +289,23 @@ module tb_lltsm_system;
         enable_b = 1'b1;
         repeat (2) @(posedge clk);
 
-        // MAC rejection information and payload checks stay in LLTSM_LINK.
+        // MAC reports CRC only; LLTSM_LINK rejects the bad CRC record.
         @(negedge clk);
-        inject_bad_to_b = 1'b1;
+        inject_bad_crc_to_b = 1'b1;
         @(negedge clk);
-        inject_bad_to_b = 1'b0;
+        inject_bad_crc_to_b = 1'b0;
         wait (rx_rejected_b);
         if (state_b != 3'd0)
             $fatal(1, "bad frame activated responder FSM");
+
+        // CRC is good, but LLTSM payload fields do not identify a train frame.
+        @(negedge clk);
+        inject_non_train_to_b = 1'b1;
+        @(negedge clk);
+        inject_non_train_to_b = 1'b0;
+        wait (rx_rejected_b);
+        if (state_b != 3'd0)
+            $fatal(1, "non-training payload activated responder FSM");
 
         pulse_start_a();
         wait (done_a);

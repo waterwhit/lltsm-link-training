@@ -7,21 +7,22 @@
 - TX 参考点：`lltsm_link` 的 128-bit 训练帧成功写入 TX 异宽 FIFO；
 - RX 参考点：MAC 在接收路径捕获、并随 RX FIFO 记录传给 LINK 的时间戳；
 - 普通业务在训练期间冻结，使 FIFO 仲裁和排队延迟固定或可忽略；
-- MAC 负责链路字头、填充、CRC/FCS 和 PHY 选择。
+- MAC 负责 CRC/FCS 和 PHY 选择，不识别 LLTSM 训练帧字段。
+- LLTSM_LINK 根据协议标识、保留位和固定图样识别训练帧。
 
 ## 原样应答约束
 
-应答节点不修改 MAC 训练帧类别，也不修改 128-bit LLTSM 负载。这样请求端可以对
-回传帧进行逐位比较，但帧内不能携带应答节点实际 turnaround。
+应答节点不修改 128-bit LLTSM 负载。这样请求端可以对回传帧进行逐位比较，但帧内
+不能携带应答节点实际 turnaround。
 
 因此单向结果定义为：
 
 ```text
 trained_path_delay =
-    (average_RTT - RESPONSE_COMPENSATION_CYCLES) / 2
+    (average_RTT - RSP_COMPENSATION_CYCLES) / 2
 ```
 
-`RESPONSE_COMPENSATION_CYCLES` 必须由系统对固定应答路径进行标定。若保持默认 0，
+`RSP_COMPENSATION_CYCLES` 必须由系统对固定应答路径进行标定。若保持默认 0，
 结果是训练 RTT 的一半，其中包含一半远端应答处理时间。该限制是“负载完全不变”
 与“动态补偿远端 turnaround”之间不可同时满足的协议取舍。
 
@@ -29,6 +30,6 @@ trained_path_delay =
 
 1. TOP 在 LLTSM 分支期间保持配置稳定并冻结普通业务。
 2. TX/RX 时间戳参考点必须固定并写入系统设计说明。
-3. MAC 的帧类别、CRC 结果和时间戳必须与 RX FIFO 负载严格对齐。
+3. MAC 的 CRC 结果和时间戳必须与 RX FIFO 负载严格对齐。
 4. 后续同步补偿必须使用相同的数据路径和参考点定义。
 5. 若远端应答延迟不固定，则只能使用平均 RTT，不能把均值结果解释为准确单向传播时延。

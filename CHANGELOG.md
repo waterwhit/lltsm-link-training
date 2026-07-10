@@ -7,8 +7,10 @@
 - Merged fixed-frame coding, TX formatting, RX parsing, response validation,
   and timestamp latching into `lltsm_link`.
 - Changed the MAC boundary to wide-side interfaces for asymmetric TX/RX FIFOs.
-- Kept MAC link-header generation, padding, CRC/FCS, and PHY selection outside
-  LLTSM.
-- Made the training response an exact echo of frame class and 128-bit payload.
+- Moved training-frame recognition from MAC to `lltsm_link`: protocol magic,
+  reserved bits, fixed pattern, addressing, and expected-response matching.
+- Removed TX/RX training-frame-class sidebands; MAC now supplies only CRC/FCS
+  status and timestamp alongside the received payload.
+- Made the training response an exact echo of the 128-bit payload.
 - Added a system-level test for rejection, exact echo, measurement, and abort.
 - Removed legacy protocol-specific identifiers from RTL and simulation names.
