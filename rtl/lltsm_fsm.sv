@@ -1,11 +1,6 @@
 `timescale 1ns/1ps
 
 // LLTSM train FSM.
-//
-// The communication-controller TOP owns the transition into and out of this
-// train. It asserts train_enable while LLTSM is selected, pulses train_start
-// for a local measurement, and leaves the train when train_done is observed.
-// This FSM schedules lltsm_link but contains no MAC framing or CRC logic.
 
 module lltsm_fsm #(
     parameter integer TIME_WIDTH = 32,
@@ -43,7 +38,6 @@ module lltsm_fsm #(
     output logic                   link_expect_rsp,
     output logic [7:0]             link_training_sequence,
     input  logic                   link_rx_req_valid,
-    //input  logic [TIME_WIDTH-1:0]  link_rx_req_timestamp,
     input  logic                   link_rx_rsp_valid,
     input  logic [TIME_WIDTH-1:0]  link_rx_rsp_timestamp,
 
@@ -54,12 +48,12 @@ module lltsm_fsm #(
     output logic [DELAY_WIDTH-1:0] result_mean_delay
 );
 
-    localparam logic [2:0] S_IDLE          = 3'd0;
+    localparam logic [2:0] S_IDLE      = 3'd0;
     localparam logic [2:0] S_SEND_REQ  = 3'd1;
-    localparam logic [2:0] S_WAIT_RSP = 3'd2;
-    localparam logic [2:0] S_RSP_WAIT = 3'd3;
-    localparam logic [2:0] S_SEND_RSP      = 3'd4;
-    localparam logic [2:0] S_DONE          = 3'd5;
+    localparam logic [2:0] S_WAIT_RSP  = 3'd2;
+    localparam logic [2:0] S_RSP_WAIT  = 3'd3;
+    localparam logic [2:0] S_SEND_RSP  = 3'd4;
+    localparam logic [2:0] S_DONE      = 3'd5;
 
     localparam integer SUM_WIDTH = DELAY_WIDTH + $clog2(MEASURE_REPEATS + 1);
     localparam integer AVG_SHIFT = $clog2(MEASURE_REPEATS);
@@ -71,6 +65,7 @@ module lltsm_fsm #(
         (RSP_WAIT > 0) ? RSP_WAIT - 1 : '0;
 
     logic [2:0] state;
+    logic [2:0] next_state;
     logic [SAMPLE_COUNT_WIDTH-1:0] sample_count;
     logic [RSP_COUNT_WIDTH-1:0] rsp_wait_count;
     logic [TIME_WIDTH-1:0] req_tx_timestamp;
@@ -80,7 +75,7 @@ module lltsm_fsm #(
     logic [DELAY_WIDTH-1:0] final_rtt_average;
     logic [DELAY_WIDTH-1:0] compensated_rtt;
 
-    wire req_fire = link_tx_req_valid && link_tx_req_ready;
+    wire req_fire    = link_tx_req_valid && link_tx_req_ready;
     wire rsp_fire    = link_tx_rsp_valid && link_tx_rsp_ready;
 
     // Parameter checks.
@@ -97,7 +92,7 @@ module lltsm_fsm #(
             $fatal(1, "lltsm_fsm requires RSP_COMPENSATION_CYCLES >= 0");
     end
 
-    //calculate the rtt
+    // Calculate the RTT and compensated mean delay.
     logic [SUM_WIDTH-1:0] final_rtt_average_wide;
     always_comb begin
         if (link_rx_rsp_timestamp >= req_tx_timestamp) begin
@@ -117,34 +112,81 @@ module lltsm_fsm #(
         end
     end
 
-    always_comb begin
-        train_state             = state;
-        train_start_ready       = train_enable && (state == S_IDLE) &&
-                                   !link_rx_req_valid;
-        train_busy              = (state != S_IDLE) && (state != S_DONE);
-        train_done              = (state == S_DONE);
-        result_valid             = (state == S_DONE);
-
-        link_clear               = train_abort || !train_enable;
-        link_tx_req_valid    = (state == S_SEND_REQ);
-        link_tx_rsp_valid       = (state == S_SEND_RSP);
-        link_expect_rsp     = (state == S_WAIT_RSP);
-        link_training_sequence =
-            {{(8-SAMPLE_COUNT_WIDTH){1'b0}}, sample_count};
-    end
-
+    // 1. State register update.
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            state                <= S_IDLE;
+            state <= S_IDLE;
+        end else if (train_abort || !train_enable) begin
+            state <= S_IDLE;
+        end else begin
+            state <= next_state;
+        end
+    end
+
+    // 2. Next-state transition conditions.
+    always_comb begin
+        next_state = state;
+
+        case (state)
+            S_IDLE: begin
+                // A remote request wins arbitration over a local start.
+                if (link_rx_req_valid) begin
+                    if (RSP_WAIT == 0) begin
+                        next_state = S_SEND_RSP;
+                    end else begin
+                        next_state = S_RSP_WAIT;
+                    end
+                end else if (train_start && train_start_ready) begin
+                    next_state = S_SEND_REQ;
+                end
+            end
+
+            S_SEND_REQ: begin
+                if (req_fire) begin
+                    next_state = S_WAIT_RSP;
+                end
+            end
+
+            S_WAIT_RSP: begin
+                if (link_rx_rsp_valid) begin
+                    if (sample_count == LAST_SAMPLE) begin
+                        next_state = S_DONE;
+                    end else begin
+                        next_state = S_SEND_REQ;
+                    end
+                end
+            end
+
+            S_RSP_WAIT: begin
+                if (rsp_wait_count == '0) begin
+                    next_state = S_SEND_RSP;
+                end
+            end
+
+            S_SEND_RSP: begin
+                if (rsp_fire) begin
+                    next_state = S_IDLE;
+                end
+            end
+
+            S_DONE: begin
+                next_state = S_IDLE;
+            end
+            end
+        endcase
+    end
+
+    // 3. Registered state data and registered result outputs.
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             sample_count         <= '0;
-            rsp_wait_count  <= '0;
-            req_tx_timestamp <= '0;
+            rsp_wait_count       <= '0;
+            req_tx_timestamp     <= '0;
             rtt_sum              <= '0;
             result_ok            <= 1'b0;
             result_rtt_average   <= '0;
             result_mean_delay    <= '0;
         end else if (train_abort || !train_enable) begin
-            state        <= S_IDLE;
             sample_count <= '0;
             rtt_sum      <= '0;
             result_ok    <= 1'b0;
@@ -155,17 +197,12 @@ module lltsm_fsm #(
                     rtt_sum      <= '0;
                     result_ok    <= 1'b0;
 
-                    // A remote request wins arbitration over a local start.
                     if (link_rx_req_valid) begin
                         if (RSP_WAIT == 0) begin
                             rsp_wait_count <= '0;
-                            state <= S_SEND_RSP;
                         end else begin
                             rsp_wait_count <= RSP_WAIT_LOAD;
-                            state <= S_RSP_WAIT;
                         end
-                    end else if (train_start && train_start_ready) begin
-                        state <= S_SEND_REQ;
                     end
                 end
 
@@ -173,7 +210,6 @@ module lltsm_fsm #(
                     if (req_fire) begin
                         // Frozen reference point: accepted wide TX FIFO write.
                         req_tx_timestamp <= time_now;
-                        state <= S_WAIT_RSP;
                     end
                 end
 
@@ -184,36 +220,62 @@ module lltsm_fsm #(
                             result_mean_delay  <= compensated_rtt >> 1;
                             result_ok          <=
                                 (final_rtt_average > RSP_COMPENSATION);
-                            state <= S_DONE;
                         end else begin
                             rtt_sum      <= rtt_sum + current_rtt;
                             sample_count <= sample_count + 1'b1;
-                            state        <= S_SEND_REQ;
                         end
                     end
                 end
 
                 S_RSP_WAIT: begin
-                    if (rsp_wait_count != '0)
+                    if (rsp_wait_count != '0) begin
                         rsp_wait_count <= rsp_wait_count - 1'b1;
-                    else
-                        state <= S_SEND_RSP;
+                    end
                 end
 
-                S_SEND_RSP: begin
-                    if (rsp_fire)
-                        state <= S_IDLE;
+                default: begin
+                    // No registered data updates in other states.
                 end
-
-                S_DONE: state <= S_IDLE;
-
-                default: state <= S_IDLE;
             endcase
         end
     end
 
-    // Exposed by lltsm_link for controller observability. rsp scheduling
-    // itself uses the deterministic wait counter.
-    // wire unused_req_timestamp = ^link_rx_req_timestamp;
+    // 4. Combinational Moore outputs.
+    always_comb begin
+        train_state       = state;
+        train_start_ready = 1'b0;
+        train_busy        = (state != S_IDLE) && (state != S_DONE);
+        train_done        = (state == S_DONE);
+        result_valid      = (state == S_DONE);
+
+        link_clear        = train_abort || !train_enable;
+        link_tx_req_valid = 1'b0;
+        link_tx_rsp_valid = 1'b0;
+        link_expect_rsp   = 1'b0;
+        link_training_sequence =
+            {{(8-SAMPLE_COUNT_WIDTH){1'b0}}, sample_count};
+
+        case (state)
+            S_IDLE: begin
+                train_start_ready = train_enable && !link_rx_req_valid;
+            end
+
+            S_SEND_REQ: begin
+                link_tx_req_valid = 1'b1;
+            end
+
+            S_WAIT_RSP: begin
+                link_expect_rsp = 1'b1;
+            end
+
+            S_SEND_RSP: begin
+                link_tx_rsp_valid = 1'b1;
+            end
+
+            default: begin
+                // Keep all state-specific outputs inactive.
+            end
+        endcase
+    end
 
 endmodule

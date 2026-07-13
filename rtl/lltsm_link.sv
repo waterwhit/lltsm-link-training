@@ -1,18 +1,6 @@
 `timescale 1ns/1ps
 
 // LLTSM link engine.
-//
-// The TX interface is the wide write side of a width-converting FIFO. The MAC
-// reads the same FIFO through its native narrow data width and generates the
-// link CRC/FCS. The MAC does not inspect LLTSM payload fields.
-//
-// The RX interface is the wide read side of the corresponding receive path.
-// MAC-side CRC status and timestamp are aligned with the 128-bit payload
-// record. This module recognizes training frames from their payload fields;
-// it never creates or calculates a link CRC.
-//
-// A response is an exact echo: every bit of the 128-bit TRAIN_FRAME payload is
-// returned unchanged.
 
 module lltsm_link #(
     parameter integer TIME_WIDTH = 32,
@@ -69,6 +57,7 @@ module lltsm_link #(
 
     wire req_write = tx_req_valid && tx_req_ready;
     wire rsp_write = tx_rsp_valid && tx_rsp_ready;
+    wire rsp_selected = tx_rsp_valid && req_pending;
 
     wire rx_record_fire = !rx_fifo_empty && rx_fifo_rd_en;
     // LLTSM_LINK, rather than the MAC, recognizes the fixed training payload.
@@ -111,7 +100,10 @@ module lltsm_link #(
                        !(tx_rsp_valid && req_pending);
 
         tx_fifo_wr_en       = req_write || rsp_write;
-        tx_fifo_wr_data     = rsp_write ? pending_req_frame : req_frame;
+        // Payload selection follows valid, not the completed handshake.  This
+        // keeps the response payload stable for the complete valid && !ready
+        // backpressure interval, as required by the ready/valid contract.
+        tx_fifo_wr_data     = rsp_selected ? pending_req_frame : req_frame;
         tx_fifo_link_id     = tx_fifo_wr_data[55:48];
         tx_fifo_channel_id  = tx_fifo_wr_data[56];
 
