@@ -172,6 +172,9 @@ module lltsm_fsm #(
             S_DONE: begin
                 next_state = S_IDLE;
             end
+
+            default: begin
+                next_state = S_IDLE;
             end
         endcase
     end
